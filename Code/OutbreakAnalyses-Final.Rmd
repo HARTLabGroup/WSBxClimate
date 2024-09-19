@@ -22,24 +22,20 @@ citationcolor: blue
 
 ```{r setup,include=FALSE, results='hide'}
 knitr::opts_chunk$set(
-	fig.height = 4,
-	fig.width = 7,
-	out.width= "504pt",
+  echo = FALSE,
 	message = FALSE,
-	echo=FALSE,
 	warning = FALSE,
-	results= "hide",
-	dpi = 300,
-	progress = FALSE
+	progress = FALSE,
+	cache = FALSE,
+	dpi = 300
 )
 
+set.seed(513)
 options(repos = c(CRAN = "http://cran.rstudio.com"))
-options(timeout=60*60*10) #timeout downloads that last longer than 10 hours
+options(timeout=60*30) #timeout downloads that last longer than 30 minutes
 
 ### Import libraries
 if (!require("remotes"))  install.packages("remotes")
-
-if (!require("climateR")) remotes::install_github("mikejohnson51/climateR")
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
@@ -70,14 +66,11 @@ pacman::p_load(
   RCurl, # downloading data via curl
   MASS, # mixed effect modelling
   nlme, # mixed effect modelling
-  climateR, 
   synchrony,
   remotes,
   readxl, # read excel files
   terrainr # dem
 ) 
-
-
 
 # Set plotting options
 options(scipen=999)
@@ -100,15 +93,39 @@ theme_new <- function(base_size = 9,base_family = "Helvetica"){
 }
 theme_set(theme_new())
 
-fig.width1 <- 3.4
-fig.width2 <- 7
-fig.width1.5 <- 4.48
+# Set custom plotting theme
+theme_new <- function(base_size = 9,base_family = "Helvetica"){
+  theme_classic(base_size = base_size, base_family = base_family) %+replace%
+    theme(
+      axis.line.x = element_line(color="black", linewidth = 0.25),
+      axis.line.y = element_line(color="black", linewidth = 0.25),
+      axis.title = element_text(size = 9),
+      axis.text = element_text(colour="black", size=8),
+      legend.key=element_rect(colour=NA, fill =NA),
+      panel.grid = element_blank(),   
+      plot.background = element_rect(fill = NA, colour = NA),
+      panel.border = element_rect(fill = NA, colour = NA),
+      panel.background = element_rect(fill = "white", colour = "black"), 
+      strip.background = element_rect(fill = "white"),
+      strip.text = element_text(size = 9)
+      
+    )
+}
+theme_set(theme_new())
 
-pt.width1 <-fig.width1 * 72
-pt.width2 <-fig.width2 * 72
-pt.width1.5 <- fig.width1.5 * 72
+set_flextable_defaults(
+  font.family="Times", 
+  font.size=12,
+  line_spacing=1,
+  padding.bottom=1,
+  padding.top=1,
+  text.align='center')
 
-sf_use_s2(FALSE)
+# Set directory structure for project
+dir.create(here("Data"), showWarnings = FALSE)
+dir.create(here("Data", "Spatial"), showWarnings = FALSE)
+dir.create(here("Results"), showWarnings = FALSE)
+dir.create(here("Results", "Figures"), showWarnings = FALSE)
 ```
 
 \pagebreak
@@ -346,7 +363,11 @@ if(!file.exists(here("Results", "climate-norms-studyarea.csv"))){
 if(!file.exists(here("Results", "Figures", "FigStudyArea.jpg"))){
   x <- tmaptools::bb(nonhost.sites)
   x[1] <- -107; x[2] <- 38.1; x[3] <- -104; x[4] <- 41.25
+  asp1 <- (x$ymax - x$ymin)/(x$xmax - x$xmin)
+  sg <- bb_poly(nonhost.sites, projection = st_crs(nonhost.sites))
+  
 
+ 
  df.rast <- rast(here("Data", "Spatial", "NIDRM","f202"))
 
   # Southern Rockies
@@ -362,17 +383,36 @@ if(!file.exists(here("Results", "Figures", "FigStudyArea.jpg"))){
   
 
   douglasfir <- vect(here("Data", "Spatial", "NIDRM","f202.shp")) %>% project(nonhost.sites) %>% st_as_sf()
-
-  studyarea <- tm_shape(douglasfir, bbox=x) +  tm_fill(col=grey(level=0.85)) + tm_shape(nonhost.sites) +tm_symbols(size=0.25, shape=21,col="darkgray", alpha=1) + tm_shape(host.sites.sub) +tm_symbols(size=0.25, shape=17, col="black") + tm_shape(denver) +tm_symbols(shape=8, size=0.5, col="black") + tm_text("NAME", just=c(-0.25,0), size=0.7, remove.overlap=T) +  tm_scale_bar(position = c(0.05,0.005), text.size=0.75, just="left", breaks=c(0,50,100), bg.color="white", bg.alpha = 0.8)+tm_compass(position=c(0.1, 0.875), just=c("center", "bottom"), text.size=0.75, size=2, type="4star")+tm_legend(bg.color="white",frame=T, legend.position=c(0.725,0.795))
   
-  dir.create(here("Results", "Figures", ""), showWarnings = F)
-  Fig.file <- here("Results", "Figures", "FigStudyArea.jpg")
-  jpeg(Fig.file, width=fig.width1, height=4.5, units="in", res=300)
-  studyarea
-  whatever <- dev.off()
+studyarea <- tm_shape(douglasfir, bbox=x) +  tm_fill(col="#5ab4ac") + tm_shape(nonhost.sites) +tm_symbols(size=0.25, shape=21,col="darkgray", alpha=1) + tm_shape(host.sites.sub) +tm_symbols(size=0.25, shape=17, col="black") + tm_shape(denver) +tm_symbols(shape=8, size=0.5, col="black") + tm_text("NAME", just=c(-0.25,0), size=0.7, remove.overlap=T) +  tm_scale_bar(position = c(0.9,0.005), text.size=0.75, just="right", breaks=c(0,50), bg.color="white", bg.alpha = 0.8)+tm_compass(position=c("right", "top"), text.size=0.75, size=2, type="4star")+tm_graticules(lines=F)
+
+  wus <- states %>% filter(STUSPS %in% c("WA", "OR", "CA", "ID", "NV", "AZ", "MT", "UT", "NM", "CO", "WY")) %>% st_transform(st_crs(douglasfir))
+  xy <- st_bbox(wus)
+  asp2 <- (xy$xmax - xy$xmin)/(xy$ymax - xy$ymin)
+  
+  insetmap = tm_shape(wus) + tm_fill(col="lightgrey") +
+  tm_shape(wus) + tm_borders(lwd = 1, col="grey") +
+  tm_shape(sg) + tm_borders(lw=2, col="black") +
+  tm_layout(inner.margins = c(0.04,0.04,0.04,0.04), outer.margins=c(0,0,0,0))
+  
+  w <- 0.3
+  h <- asp2 * w
+  vp <- viewport(x=0.15, y=0.009, width = w, height=h, just=c("left", "bottom"))
+  
+  #dir.create(here("Results", "Figures", ""), showWarnings = F)
+  #Fig.file <- here("Results", "Figures", "FigStudyArea.jpg")
+  #jpeg(Fig.file, width=3.5, height=4.5, units="in", res=300)
+  #studyarea
+  #whatever <- dev.off()
+  
+  tmap_save(studyarea,filename=Fig.file,
+          dpi=300, insets_tm=insetmap, insets_vp=vp,
+          height=4.5, width=3.5, units="in")
+
+
 
 }
-knitr::include_graphics(here("Results", "Figures", "Fig1.jpg"))
+knitr::include_graphics(here("Results", "Figures", "FigStudyArea.jpg"))
 ```
 
 ## Data
@@ -946,12 +986,12 @@ if(!file.exists(here("Results", "Regional-sychrony.csv"))){
   
   
   Fig.file <- here("Results", "Figures", "FigCovariance-Multi.jpg")
-  jpeg(Fig.file, width=fig.width2, height=3, units="in", res=300)
+  jpeg(Fig.file, width=7, height=3, units="in", res=300)
   sncf.plot+labs(title="A - 1750-1998") + sncf.plot.pre+labs(title="B - 1750-1849") + sncf.plot.post+labs(title="C - 1890-1989")
   whatever <- dev.off()
   
   Fig.file <- here("Results", "Figures", "FigCovariance.jpg")
-  jpeg(Fig.file, width=fig.width1, height=2.4, units="in", res=300)
+  jpeg(Fig.file, width=3.5, height=2.4, units="in", res=300)
   sncf.plot
   whatever <- dev.off()
   
@@ -970,7 +1010,7 @@ if(!file.exists(here("Results", "Regional-sychrony.csv"))){
   sncf.plot.nonhost <- ggplot(sncf.nonhost.res, aes(x=x/1000, y=y))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+xlim(0,100)+ylim(-0.5,1)+geom_abline(intercept = 0, slope = 0) +geom_abline(intercept = summary(sncf.nonhost)$Regional.synch, slope = 0, linetype = "dashed") +labs(x="distance (km)", y= "covariance")
   
   Fig.file <- here("Results", "Figures", "FigCovariance-Nonhost.jpg")
-  jpeg(Fig.file, width=fig.width1, height=2.4, units="in", res=300)
+  jpeg(Fig.file, width=3.5, height=2.4, units="in", res=300)
   sncf.plot.nonhost
   whatever <- dev.off()
   
@@ -1088,13 +1128,13 @@ Third, we used Multivariate Event Analysis to test for clustering among years of
   endk.post <- ggplot(x, aes(x=h, y=Lhat))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+geom_hline(yintercept=0)+labs(x = "lag (years)", y = "Temporal clustering", title = "F - Cessation (1980-1989)") +theme(legend.position="none")  +ylim(-7.5, 7.5)
   
   Fig.file <- here("Results", "Figures", "MEA-Multi.jpg")
-  jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+  jpeg(Fig.file, width=7, height=5, units="in", res=300)
   startk + theme(axis.text.x = element_blank(), axis.title.x = element_blank() ) +startk.pre + theme(axis.text = element_blank(), axis.title = element_blank() ) +startk.post + theme(axis.text = element_blank(), axis.title = element_blank()) +endk + endk.pre + theme(axis.text.y = element_blank(), axis.title.y = element_blank())  + endk.post + theme(axis.text.y = element_blank(), axis.title.y = element_blank()) + plot_layout(nrow=2)
   whatever <- dev.off() 
   
   
   Fig.file <- here("Results", "Figures", "MEA.jpg")
-  jpeg(Fig.file, width=fig.width1, height=3.5, units="in", res=300)
+  jpeg(Fig.file, width=3.5, height=3.5, units="in", res=300)
   startk+xlab("lag (years)")+labs(title="A - Initiation") +endk+labs(title="B - Cessation")  + plot_layout(nrow=2)
   whatever <- dev.off() 
 ```
@@ -1156,7 +1196,7 @@ p5.labs <- data.frame(timeperiod= c("1750-1849", "1890-1989"), label=c("a", "a")
 p5 <- ggplot(host.outbreak.stats.df.sub, aes(x=timeperiod, y=q))+geom_boxplot()+ylab("length of quiescent\nperiod (years)")+ theme(axis.title.x=element_blank())#+ylim(40,90)#+geom_text(data=p4.labs, aes(label = label, x =timeperiod, y = c(86,68)), size=3)
 
 Fig.file <- here("Results", "Figures", "Colonization.jpg")
-jpeg(Fig.file, width=fig.width2, height=2.5, units="in", res=300)
+jpeg(Fig.file, width=7, height=2.5, units="in", res=300)
 p1+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p2+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p5+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p3+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p4+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+plot_layout(nrow=1)+plot_annotation(tag_levels = "A")
 whatever <- dev.off()
 ```
@@ -1211,17 +1251,17 @@ p4 <- ggplot(xx, aes(x=time.period, y=AVG))+geom_boxplot()+ylab("SC-PDSI")+theme
 
  
 Fig.file <- here("Results", "Figures", "T.jpg")
-jpeg(Fig.file, width=fig.width1.5, height=2, units="in", res=300)
+jpeg(Fig.file, width=3.5, height=2, units="in", res=300)
 p2+labs(title = "A - 1750-1849")+p3+labs(title = "B - 1890-1989")+plot_layout(nrow=1)
 whatever <- dev.off()
 
 Fig.file <- here("Results", "Figures", "T-simple.jpg")
-jpeg(Fig.file, width=fig.width1, height=2, units="in", res=300)
+jpeg(Fig.file, width=3.5, height=2, units="in", res=300)
 p1
 whatever <- dev.off()
 
 Fig.file <- here("Results", "Figures", "T-PDSI.jpg")
-jpeg(Fig.file, width=fig.width1, height=2, units="in", res=300)
+jpeg(Fig.file, width=3.5, height=2, units="in", res=300)
 p4
 whatever <- dev.off()
 
@@ -1267,12 +1307,12 @@ sea.initiation.df <- do.call(rbind, sea.initiation)
 sea.initiation.df$sig <- cut(sea.initiation.df$p, breaks=c(-1,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
 
 Fig.file <- here("Results", "Figures", "SEA-initation-site.jpg")
-jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
 ggplot(sea.initiation.df, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+facet_wrap(.~SeriesCode)+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black", "grey30", "lightgray"))+ylab("JJA SC-PDSI")+xlab("lag (years)")
 whatever <- dev.off()
 
 Fig.file <- here("Results", "Figures", "SEA-cessation-site.jpg")
-jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
 ggplot(sea.cessation.df, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+facet_wrap(.~SeriesCode)+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black", "grey30", "lightgray"))+ylab("JJA SC-PDSI")+xlab("lag (years)")
 whatever <- dev.off()
 
@@ -1294,7 +1334,7 @@ sea.init.combo <- ggplot(sea.initiation.summary, aes(x=lag, y=value,fill=plotby)
 sea.cess.combo <- ggplot(sea.cessation.summary, aes(x=lag, y=value,fill=plotby))+geom_bar(stat="identity")+scale_fill_manual(values=c( '#92c5de', '#0571b0', '#f4a582','#ca0020'))+scale_y_continuous(limits=c(-4, 8),breaks=c(-4, -2, 0, 2, 4,6,8), labels=c(4, 2, 0, 2,4,6,8))+geom_hline(yintercept=0)+theme(legend.title=element_blank())
 
 Fig.file <- here("Results", "Figures","SEA-combo-site.jpg")
-jpeg(Fig.file, width=fig.width1.5, height=3, units="in", res=300)
+jpeg(Fig.file, width=3.5, height=3, units="in", res=300)
 sea.init.combo+ylab("Count of sites")+xlab("lag (years)")+labs(title = "A - Initiation")+ sea.cess.combo+xlab("lag (years)")+labs(title = "B - Cessation")+ theme(axis.text.y = element_blank(), axis.title.y = element_blank()) + plot_layout(nrow=1)  + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
 whatever <- dev.off()
 ```
@@ -1313,7 +1353,7 @@ p1 <- ggplot(sea.initiation.regional, aes(x=lag, y=se.unscaled, fill=sig))+geom_
 p2 <- ggplot(sea.cessation.regional, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black","grey30", "lightgrey"),drop=F)+ylab("JJA PDSI")+xlab("lag (years)")+labs(title = "B - Cessation")
 
 Fig.file <- here("Results", "Figures", "SEA-Regional.jpg")
-jpeg(Fig.file, width=fig.width1.5, height=3, units="in", res=300)
+jpeg(Fig.file, width=3.5, height=3, units="in", res=300)
 p1+ylim(-1.5,2.5)+ p2+ylim(-1.5,2.5) + theme(axis.title.y = element_blank(), axis.text.y = element_blank()) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
 whatever <- dev.off()
 
@@ -1488,7 +1528,7 @@ p6 <- rall %>% filter(var=="duration (years)" & x %in% c("wet period concurrent\
   scale_y_continuous( breaks=pretty_breaks())
 
 Fig.file <- here("Results", "Figures","outbreak-PDSIperiod.jpg")
-jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
 p1+theme(axis.text.x=element_blank())+p4+theme(axis.title.y=element_blank(),axis.text.x=element_blank())+p2+p5+theme(axis.title.y=element_blank())+p3+p6+theme(axis.title.y=element_blank())+plot_layout(nrow=3)
 whatever <- dev.off() 
 
@@ -1525,7 +1565,7 @@ p2 <- ggplot(host.outbreak.stats.df, aes(x=start, xend=end, y=SeriesCode, yend=S
 p3 <- ggplot(regional.outbreaks, aes(x=year))+geom_bar(aes(y=noutbreaks), stat="identity",width=1)+geom_line(aes(y=nsites), linetype="dashed")+theme(legend.position = "bottom", legend.title = element_blank())+xlim(1666,2021)+ geom_rect(data=regional.outbreaks.sum, inherit.aes=FALSE, aes(ymin = -Inf, ymax = Inf, xmin = start, xmax = end), alpha = 0.2, fill = "gray20")+scale_y_continuous(name="number of sites",breaks=c(0,5,10))
 
 Fig.file <- here("Results", "Figures", "OutbreakHistory-Combo.jpg")
-jpeg(Fig.file, width=fig.width2, height=5.5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5.5, units="in", res=300)
 p1 + theme(axis.title.x = element_blank(), axis.text.x=element_blank())+ p2+ theme(axis.title.x = element_blank(), axis.text.x=element_blank()) +p3 +plot_layout(nrow=3, heights=c(0.9, 1.5, 0.9)) +plot_annotation(tag_levels = "A")
 whatever <- dev.off()
 
@@ -1757,7 +1797,7 @@ res.vpd <- res
 res <- rbind(rbind(res.tmean, res.ppt), res.vpd)
   
 Fig.file <- here("Results", "Figures", "PDSIxTMEAN.jpg")
-jpeg(Fig.file, width=fig.width1, height=3.5, units="in", res=300)
+jpeg(Fig.file, width=3.5, height=3.5, units="in", res=300)
  ggplot(res, aes(x=factor(month), y=r, fill=variable))+geom_bar(stat="identity", position="dodge") +xlab("month")+ylab("correlation")+theme(legend.title=element_blank(),legend.position = 'bottom')+ylim(-0.5, 0.5)+scale_fill_manual(values=c('#0072B2', '#DC3220', 'gray'))
 whatever <- dev.off() 
 
@@ -1804,12 +1844,12 @@ sea.cessation.df.pre$sig <- cut(sea.cessation.df.pre$p, breaks=c(0,0.05, 0.1, 1)
 
 
 Fig.file <- here("Results", "Figures", "SEA-initation-site-pre.jpg")
-jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
 ggplot(sea.initiation.df.pre, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+facet_wrap(.~SeriesCode)+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black", "grey30", "lightgray"))+ylab("JJA SC-PDSI")+xlab("lag (years)")
 whatever <- dev.off()
 
 Fig.file <- here("Results", "Figures", "SEA-cessation-site-pre.jpg")
-jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
 ggplot(sea.cessation.df.pre, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+facet_wrap(.~SeriesCode)+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black", "grey30", "lightgray"))+ylab("JJA SC-PDSI")+xlab("lag (years)")
 whatever <- dev.off()
 
@@ -1870,12 +1910,12 @@ sea.initiation.df.post$sig <- cut(sea.initiation.df.post$p, breaks=c(-1,0.05, 0.
 sea.cessation.df.post$sig <- cut(sea.cessation.df.post$p, breaks=c(0,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
 
 Fig.file <- here("Results", "Figures", "SEA-initation-site-post.jpg")
-jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
 ggplot(sea.initiation.df.post, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+facet_wrap(.~SeriesCode)+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black", "grey30", "lightgray"))+ylab("JJA SC-PDSI")+xlab("lag (years)")
 whatever <- dev.off()
 
 Fig.file <- here("Results", "Figures", "SEA-cessation-site-post.jpg")
-jpeg(Fig.file, width=fig.width2, height=5, units="in", res=300)
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
 ggplot(sea.cessation.df.post, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+facet_wrap(.~SeriesCode)+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black", "grey30", "lightgray"))+ylab("JJA SC-PDSI")+xlab("lag (years)")
 whatever <- dev.off()
 
@@ -1896,7 +1936,7 @@ sea.cess.combo.post <- ggplot(sea.cessation.summary.post, aes(x=lag, y=value,fil
 
 
 Fig.file <- here("Results", "Figures", "SEA-combo-site-timeperiod.jpg")
-jpeg(Fig.file, width=fig.width2, height=4, units="in", res=300)
+jpeg(Fig.file, width=7, height=4, units="in", res=300)
 sea.init.combo+theme(axis.text.x=element_blank(), axis.title.x=element_blank(), legend.title=element_blank())+labs(title = "A - Initiation (all years)")+sea.init.combo.pre+ theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), legend.title=element_blank())+labs(title = "B - Initiation (1750-1849)")+ sea.init.combo.post+ theme(axis.text.x=element_blank(), axis.title.x=element_blank(), axis.text.y = element_blank(), axis.title.y = element_blank(), legend.title=element_blank())+labs(title = "C - Initiation (1890-1989)") + sea.cess.combo +theme(legend.title=element_blank())+xlab("lag (years)")+ labs(title = "D - Cessation (all years)", y="Count of sites") + sea.cess.combo.pre +xlab("lag (years)")+ theme(axis.text.y = element_blank(), axis.title.y = element_blank(), legend.title=element_blank())+labs(title = "E - Cessation (1750-1849)") + sea.cess.combo.post+xlab("lag (years)")+labs(title = "F - Cessation (1890-1989)")+ theme(axis.text.y = element_blank(), axis.title.y = element_blank(), legend.title=element_blank()) + plot_layout(nrow=2) + plot_layout(guides = "collect") & theme(legend.position = 'bottom')
 whatever <- dev.off()
 ```
