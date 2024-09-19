@@ -1,0 +1,8 @@
+Category,SeriesCode,SiteName,Contributors,Public,Update,Species,Lat,Lon,Elev,EarliestYr,LatestYr,Include
+Climate,DR,Deer Ridge,"Veblen, T.T.",No,YES,PIPO,40.36666667,-105.5666667,2580,,,Y
+Climate,ELDO,Eldorado Canyon,"Graybilll, D.A.; Veblen, T.T.",No,YES,PIPO,39.933333,-105.266667,1680,,,Y
+Climate,JFCO,Jefferson County UPDATE 2008,"Graybill, D.A.; Woodhouse, C.A.; Lukas, J.J.; Nepstad-Thornberry, C.; Veblen, T.T.",No,YES,PIPO,39.68,-105.2,1965,,,Y
+Climate,VBIB,Van Bibber Creek UPDATE 2008,"Graybill, D.A.; Woodhouse, C.A.; Lukas, J.J.; Veblen, T.T.",No,YES,PIPO,39.8,-105.25,1920,,,Y
+Climate,TUCK,Turkey Creek,"Graybill, D.A.; Woodhouse, C.A.; Losleben, M.V.; Chowanski, K.; Lukas, J.J.",,YES,PIPO,38.6,-104.87,1938,1634,2003,Y
+Climate,DM,Deer Mountain,"Graybill, D.A.; Woodhouse, C.A.; Lukas, J.J.; Wilkinson Kaye, M.",,YES,PIPO,40.37,-105.58,2605,,,Y
+Climate,SF,South Fork,"Woodhouse, C.A.; Losleben, M.V.; Chowanski, K.; ",No,YES,PIPO,37.67,-106.65,2591,1566,2008,Y

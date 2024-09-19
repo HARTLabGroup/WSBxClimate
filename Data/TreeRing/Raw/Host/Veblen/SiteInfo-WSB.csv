@@ -1,0 +1,16 @@
+Category,Series Code,Site Name,Contributor(s),Public,Update,Species,Lat,Long,Elev,Start Year,End Year,Notes
+WSB,B18,Boulder county 18,"Veblen, T.T.",No,No,PSME,40.163209,-105.459561,,1464,1998,coordinates estimated based on map in Veblen et al. (2000)
+WSB,B19,Boulder county 19,"Veblen, T.T.",No,No,PSME,40.1655633,-105.481387,,1548,1998,coordinates estimated based on map in Veblen et al. (2000)
+WSB,EP,Estes Park,"Veblen, T.T.",No,No,PSME,40.36128808,-105.4451392,,1591,1995,
+WSB,FP,Frankenberger Pt.,"Veblen, T.T.",No,No,PSME,40.04102,-105.45444,,1419,1995,coodinates estimated based on Veblen and Lornez (1991) and R2Veg Douglas fir polygons
+WSB,JP,Lost Jeep,"Schimek, S. & Veblen, T.T.",No,No,PSME,39.09286043,-105.3653275,,1440,1994,
+WSB,LJ,Lost Junction,"Veblen, T.T.",No,No,PSME,40.29470943,-105.4635744,,1571,1995,
+WSB,NI,North Inlet,"Veblen, T.T.",No,No,PSME,40.27536637,-105.7763456,2770,1691,2000,
+WSB,SH,S. Hollowell,"Veblen, T.T.",No,No,PSME,40.33630502,-105.6075955,,1638,1995,
+WSB,SR,South Rd. 30,"Schimek, S. & Veblen, T.T.",No,No,PSME,39.16006898,-105.017466,,1604,1994,
+WSB,SS,Sugarloaf Saddle,"Veblen, T.T.",No,No,PSME,40.02675762,-105.421147,,1594,1995,
+WSB,SP,Summerland Park,"Veblen, T.T.",No,No,PSME,40.26418611,-105.7910361,,1564,2000,
+WSB,TI,Three Island Lake Trail,"Veblen, T.T.",No,No,PSME,40.75631,-106.75358,,1697,1997,coordinates estimated based on R2Veg Douglas fir polygon
+WSB,WR,W. Rd 211,"Schimek, S. & Veblen, T.T.",No,No,PSME,39.08637737,-105.4073351,,1691,1994,
+WSB,WW,Wigwam I,"Schimek, S. & Veblen, T.T.",No,No,PSME,39.24137251,-105.2651545,,1743,1994,
+WSB,WB,Wild Basin,"Veblen, T.T.",No,No,PSME,40.20932,-105.55018,,1414,2000,coordintes estimated based on romo veg polygon and description 

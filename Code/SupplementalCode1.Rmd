@@ -1,0 +1,1244 @@
+---
+title: "Supplemental code"
+author: "Sarah Hart"
+email: "sarah.hart@colostate.edu"
+date: "May 15, 2023"
+output: 
+  bookdown::html_document2:
+    code_folding: hide
+    toc: TRUE
+    toc_depth: 4
+    toc_float: TRUE
+    collapsed: FALSE
+    theme: spacelab
+    fig_caption: TRUE
+    number_sections: FALSE
+---
+Briefly, here we (1) statistically check the cross-dating on unpublished data; (2) remove any series that don't statistically correlate particularly well; and (3) calculate basic summary statistics for each chronology. 
+
+```{r setup, echo=T, results=T, message=F, warning=TRUE, progress=FALSE}
+knitr::opts_chunk$set(
+	echo = T,
+	fig.align = "center",
+	fig.height = 4,
+	fig.width = 7,
+	out.width= "504pt",
+	message = FALSE,
+	warning = FALSE,
+	dpi = 300,
+	progress = FALSE
+)
+# Set seed
+set.seed(2020)
+
+### Import libraries
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  here, # easy file structure
+  tidyverse, # data manipulation
+  tidymodels, # modeling 
+  ggplot2, # figures
+  patchwork, # combining figures
+  ggsci, # color palettes
+  dplR, # basic dendrochronology
+  dfoliatR, # dendroecology 
+  zoo, # time series
+  factoextra, # multivariate analyses
+  forcats, # categorical data
+  ggcorrplot, # easy data exploration
+  colorspace, # color palettes
+  RColorBrewer, # color palettes
+  ggalluvial, # alluvial plots
+  knitr, # markdown documents
+  kableExtra, # tables in markdown
+  flextable, # other table options
+  bookdown, # figure numbering in markdown
+  sp, # spatial data (old pkg)
+  sf, # spatial data (new pkg)
+  raster, # raster data (old pkg)
+  terra, # raster data (new pkg)
+  tmap, # easy plotting of maps
+  foreach, # paralleling code
+  googlesheets4 #google sheets
+) 
+
+
+# Set plotting options
+options(scipen=999)
+theme_new <- function(base_size = 9,base_family = "Helvetica"){
+  theme_classic(base_size = base_size, base_family = base_family) %+replace%
+    theme(
+      axis.line.x = element_line(color="black", linewidth = 0.25),
+      axis.line.y = element_line(color="black", linewidth = 0.25),
+      axis.title = element_text(size = 9),
+      axis.text = element_text(colour="black", size=8),
+      legend.key=element_rect(colour=NA, fill =NA),
+      panel.grid = element_blank(),   
+      plot.background = element_rect(fill = NA, colour = NA),
+      panel.border = element_rect(fill = NA, colour = NA),
+      panel.background = element_rect(fill = "white", colour = "black"), 
+      strip.background = element_rect(fill = "white"),
+      strip.text = element_text(size = 9)
+      
+    )
+}
+theme_set(theme_new())
+options(ggplot2.continuous.colour="viridis")
+scale_colour_discrete <- scale_fill_npg
+scale_fill_discrete <- scale_fill_npg
+
+
+# custom tree-ring series functions
+clipfun <- function(rwlz=rwlj, series.name, clip.year ){
+  seriesx <- rwlz[,series.name]
+  names(seriesx) <- row.names(rwlz)
+  seriesx[as.character(min(row.names(rwlz)):clip.year)] <- NA
+  seriesx <- seriesx[1:nrow(rwlz)]
+  rwlz[,series.name] <- seriesx 
+  return(rwlz)
+}
+
+rwl2ts <- function(rwl){
+  rwl <- ts(rwl[,2], start=min(row.names(rwl)))
+  return(rwl)
+}
+
+avgbytree <- function(x){
+  treez <- unique(gsub(pattern="A", x=gsub(pattern="B", x=colnames(x), replacement = ""), replacement = ""))
+  out <- data.frame(matrix(data=NA, nrow=nrow(x), ncol=length(treez)))
+  colnames(out) <- treez
+  rownames(out) <- rownames(x)
+for(j in treez){
+  z <- as.data.frame(x[,colnames(x) %in% paste0(j, c("A", "B"))])
+  if(dim(z)[2]>1){
+      out[,j] <- rowMeans(z, na.rm=TRUE)
+  }else{
+   out[,j] <- z
+  }
+  out[is.na(out)] <- NA
+  
+}
+  out <- out[rowSums(out, na.rm=T)>0,]
+  
+return(out)
+}
+dir.create(here("Data/TreeRing/Processed"), showWarnings = FALSE)
+dir.create(here("Data/TreeRing/Processed/Host"), showWarnings = FALSE)
+dir.create(here("Data/TreeRing/Processed/NonHost"), showWarnings = FALSE)
+```
+
+
+# Nonhost data
+## Summarize site data
+### ITDRB
+We downloaded all publicly available ponderosa pine tree-ring data from the International Tree-Ring Databank (ITRDB).
+```{r}
+x <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern="-noaa.rwl", full.names=T)
+
+N <- length(x)
+keymet <- data.frame(Category= "Climate", SeriesCode= character(N), SiteName= character(N), Contributors= character(N), Public="ITRDB", Update=NA, Species="PIPO", Lat=NA, Lon=NA, Elev=numeric(N), EarliestYr=NA, LatestYr= NA, Citation=NA)
+for(j in 1:N){
+  filej <- x[[j]]
+  
+  keymet[j, "SeriesCode"]<- strsplit(readLines(con=filej, n=1), split="ITRDB ")[[1]][2]
+  keymet[j, "SiteName"]<- strsplit(readLines(con=filej, n=1), split=" - ")[[1]][2]
+   keymet[j, "Contributors"]<- strsplit(readLines(con=filej, n=35)[35], split="Investigators: ")[[1]][2]
+    keymet[j, "Lat"]<- strsplit(readLines(con=filej, n=55)[55], split="# Northernmost_Latitude: ")[[1]][2]
+    keymet[j, "Lon"]<- strsplit(readLines(con=filej, n=57)[57], split="# Easternmost_Longitude: ")[[1]][2]
+    keymet[j, "Elev"]<- strsplit(readLines(con=filej, n=59)[59], split="# Elevation: ")[[1]][2]
+    keymet[j, "EarliestYr"]<- strsplit(readLines(con=filej, n=63)[63], split="# Earliest_Year: ")[[1]][2]
+    keymet[j, "LatestYr"]<- strsplit(readLines(con=filej, n=64)[64], split="# Most_Recent_Year: ")[[1]][2]
+    keymet[j, "Citation"]<- strsplit(readLines(con=filej, n=49)[49], split="# Full_Citation: ")[[1]][2]
+    
+    keymet[j, "Update"]<- ifelse(grepl("Update", keymet[j, "SiteName"],fixed = TRUE) == TRUE | grepl("Recollect", keymet[j, "SiteName"],fixed = TRUE)==TRUE, "Yes", "No")
+
+}
+
+keymet1 <- keymet[keymet$Update=="Yes",]
+keymet1$Updated <- word(keymet1$SiteName, start=1, end=-2)
+keymet1[keymet1$Updated=="Turkey Creek", ]$Updated <- "Turkey Creek Bluff"
+keymet1[keymet1$Updated=="Van Bibber", ]$Updated <- "Van Bibber Creek"
+keymet[keymet$SiteName %in% keymet1$Updated == TRUE,]$Update <- keymet1$SeriesCode
+```
+
+### Veblen
+```{r}
+AGPE <- read.csv(here("Data/TreeRing/Raw/Nonhost/Veblen/AGPE/SiteInfo.csv"))
+AGPE <- AGPE[,c("Site", "Lat", "Long", "Series.Code")]
+
+AGPF <- read.csv(here("Data/TreeRing/Raw/Nonhost/Veblen/AGPF/SiteInfo.csv"))
+AGPF <- AGPF[,c("Site", "Lat", "Long", "Series.Code")]
+
+DRI <- read.csv(here("Data/TreeRing/Raw/Nonhost/Veblen/DRI/SiteInfo.csv"))
+DRI <- DRI[,c("Site", "Lat", "Long", "Series.Code")]
+
+DRI08 <- read.csv(here("Data/TreeRing/Raw/Nonhost/Veblen/DRI08/SiteInfo.csv"))
+DRI08 <- DRI08[,c("Site", "Lat", "Long", "Series.Code")]
+
+ELDO08 <- read.csv(here("Data/TreeRing/Raw/Nonhost/Veblen/ELDO08/SiteInfo.csv"))
+ELDO08 <- ELDO08[,c("Site", "Lat", "Long", "Series.Code")]
+
+JFCO08 <- read.csv(here("Data/TreeRing/Raw/Nonhost/Veblen/JFCO08/SiteInfo.csv"))
+JFCO08 <-JFCO08[,c("Site", "Lat", "Long", "Series.Code")]
+
+VBIB08 <- read.csv(here("Data/TreeRing/Raw/Nonhost/Veblen/VBIB08/SiteInfo.csv"))
+VBIB08 <- VBIB08[,c("Site", "Lat", "Long", "Series.Code")]
+
+NHost.sites <- do.call(rbind, list(AGPE, AGPF, DRI, DRI08, ELDO08, JFCO08,VBIB08 ))
+
+keymet.veblen <- data.frame(Category= "Climate", SeriesCode= NHost.sites$Series.Code, SiteName= NHost.sites$Site, Contributors= "Veblen lab", Public="No", Update=c("No", "No","Yes", "Yes", "Yes", "Yes", "Yes"), Species=c("PIEN", "PIFL", "PIPO", "PIPO","PIPO","PIPO","PIPO"), Lat=NHost.sites$Lat, Lon=NHost.sites$Long, Elev=NA, EarliestYr=NA, LatestYr= NA, Citation=NA)
+
+keymet <- rbind(keymet, keymet.veblen)
+```
+
+## Calculate chronology stats 
+
+### Published chronologies that haven't been updated
+```{r}
+dir.create(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"))
+
+keymet$nseries <- NA
+keymet$interrbar <- NA
+keymet$interrbar.sd <- NA
+keymet$ar1bar <- NA
+keymet$ar1bar.sd <- NA
+itrdb <- keymet[keymet$Public=="ITRDB", ]
+itrdb <- itrdb[itrdb$Update=='No', ]
+#itrdb <- itrdb[!(itrdb$`Series Code` %in% samplesites$Update), ]
+itrdb <- itrdb[!(itrdb$`SeriesCode` =="CO602"), ]
+itrdb <- itrdb[!(itrdb$`SeriesCode` =="CO623"), ]
+itrdb <- itrdb[!(itrdb$`SeriesCode` =="CO657"), ]
+itrdb <- itrdb[!(itrdb$`SeriesCode` =="CO663"), ]
+for(j in 1:nrow(itrdb)){
+  series <- as.character(itrdb[j, "SeriesCode"])
+  site <- itrdb[j, "SiteName"]
+  series.site <- gsub( " ", "-",paste(series, site))
+  filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"),pattern=paste0(series, ".rwl"), full.names=T, ignore.case=T)
+  rwlj <-read.rwl(filej)
+  keymet[keymet$`SeriesCode`==series, "nseries"] <- rwl.report(rwlj)$nseries
+  keymet[keymet$`SeriesCode`==series, "interrbar"] <- rwl.report(rwlj)$interrbar
+  keymet[keymet$`SeriesCode`==series, "interrbar.sd"] <- rwl.report(rwlj)$interrbar.sd
+  keymet[keymet$`SeriesCode`==series, "ar1bar"] <- rwl.report(rwlj)$ar1bar
+  keymet[keymet$`SeriesCode`==series, "ar1bar.sd"] <- rwl.report(rwlj)$ar1bar.sd
+
+  #### Write to file
+  write.rwl(rwlj, fname=paste0(here("Data/TreeRing/Processed/Nonhost/"), series.site, "-PIPO.rwl"), format="tucson")
+}
+```
+
+### Unpublished chronologies that haven't been updated
+
+```{r}
+
+# Al Gulch
+## AGPE
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/Veblen/AGPE/"), pattern=".rwl", full.names=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+#### Remove shorter series (909, 979, 978, 920) that don't seem to correlate that well 
+rwlj.1 <- rwlj[,!(colnames(rwlj)%in% as.character(c(909, 979, 978, 920)))]
+rwljcor1 <- corr.rwl.seg(rwlj.1, seg.length=50, pcrit=0.1)
+rwlj1.rep <- rwl.report(rwlj.1)
+
+#### Remove 990, 922 
+rwlj.2 <- rwlj.1[,!(colnames(rwlj.1)%in% as.character(c(990, 922)))]
+rwljcor2 <- corr.rwl.seg(rwlj.2, seg.length=50, pcrit=0.1)
+rwlj2.rep <- rwl.report(rwlj.2)
+
+keymet[keymet$`SeriesCode`=="AGPE", "nseries"] <- rwlj2.rep$nseries
+keymet[keymet$`SeriesCode`=="AGPE", "interrbar"] <- rwlj2.rep$interrbar
+keymet[keymet$`SeriesCode`=="AGPE", "interrbar.sd"] <- rwlj2.rep$interrbar.sd
+keymet[keymet$`SeriesCode`=="AGPE", "ar1bar"] <- rwlj2.rep$ar1bar
+keymet[keymet$`SeriesCode`=="AGPE", "ar1bar.sd"] <- rwlj2.rep$ar1bar.sd
+keymet[keymet$`SeriesCode`=="AGPF", "EarliestYr"] <- rwlj2.rep$yr0
+keymet[keymet$`SeriesCode`=="AGPF", "LatestYr"] <- rwlj2.rep$yr1
+
+
+#### Write to file
+write.rwl(rwlj.2, fname=here("Data/TreeRing/Processed/Nonhost/Al-Gulch-PIEN.rwl"), format="tucson")
+
+## AGPF
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/Veblen/AGPF/"), pattern=".rwl", full.names=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+#### Remove 939, 962, 901, 949, 826
+rwlj.1 <- rwlj[,!(colnames(rwlj)%in% as.character(c(939, 962, 901, 949, 826)))]
+rwljcor1 <- corr.rwl.seg(rwlj.1, seg.length=50, pcrit=0.1)
+rwlj.rep <- rwl.report(rwlj.1)
+
+#### Remove 944
+rwlj.2 <-  rwlj.1[,!(colnames(rwlj.1)=='944')]
+rwljcor2 <- corr.rwl.seg(rwlj.2, seg.length=50, pcrit=0.1)
+rwlj.rep <- rwl.report(rwlj.2)
+
+keymet[keymet$`SeriesCode`=="AGPF", "nseries"] <- rwlj.rep$nseries
+keymet[keymet$`SeriesCode`=="AGPF", "interrbar"] <- rwlj.rep$interrbar
+keymet[keymet$`SeriesCode`=="AGPF", "interrbar.sd"] <- rwlj.rep$interrbar.sd
+keymet[keymet$`SeriesCode`=="AGPF", "ar1bar"] <- rwlj.rep$ar1bar
+keymet[keymet$`SeriesCode`=="AGPF", "ar1bar.sd"] <- rwlj.rep$ar1bar.sd
+keymet[keymet$`SeriesCode`=="AGPF", "EarliestYr"] <- rwlj.rep$yr0
+keymet[keymet$`SeriesCode`=="AGPF", "LatestYr"] <- rwlj.rep$yr1
+
+#### Write to file
+write.rwl(rwlj.2, fname=here("Data/TreeRing/Processed/Nonhost/Al-Gulch-PIFL.rwl"), format="tucson")
+```
+
+### Updated chronologies
+```{r}
+# Deer Mountain
+## CO598
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO598", ".rwl"), full.names=T, ignore.case=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## CO532
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO532", ".rwl"), full.names=T, ignore.case=T)
+rwlj1 <-read.rwl(filej)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+
+keymet <- rbind(keymet, data.frame(Category= "Climate", SeriesCode="DMC", SiteName= "Deer Mountain", Contributors= "combo", Public="ITRDB", Update="combo", Species="PIPO", Lat=keymet[keymet$SeriesCode=="CO532","Lat"], Lon=keymet[keymet$SeriesCode=="CO532","Lon"], Elev=keymet[keymet$SeriesCode=="CO532","Elev"], EarliestYr=rwl.report(rwlcombo)$yr0, LatestYr= rwl.report(rwlcombo)$yr1, Citation=NA, nseries= rwl.report(rwlcombo)$nseries, interrbar= rwl.report(rwlcombo)$interrbar,  interrbar.sd =rwl.report(rwlcombo)$interrbar.sd, ar1bar =  rwl.report(rwlcombo)$ar1bar, ar1bar.sd= rwl.report(rwlcombo)$ar1bar.sd))
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data/TreeRing/Processed/Nonhost/DMC-PIPO.rwl"), format="tucson")
+
+# Deer Ridge
+## DRI
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/Veblen/DRI"), pattern=".rwl", full.names=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## DRI08
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/Veblen/DRI08"), pattern=".rwl", full.names=T)
+rwlj2 <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj2, seg.length=50, pcrit=0.1)
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj2)
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+
+keymet <- rbind(keymet, data.frame(Category= "Climate", SeriesCode="DRC", SiteName= "Deer Ridge", Contributors= "combo", Public="ITRDB", Update="combo", Species="PIPO", Lat=keymet[keymet$SeriesCode=="DRI","Lat"], Lon=keymet[keymet$SeriesCode=="DRI","Lon"], Elev=keymet[keymet$SeriesCode=="DRI","Elev"], EarliestYr=rwl.report(rwlcombo)$yr0, LatestYr= rwl.report(rwlcombo)$yr1, Citation=NA, nseries= rwl.report(rwlcombo)$nseries, interrbar= rwl.report(rwlcombo)$interrbar,  interrbar.sd =rwl.report(rwlcombo)$interrbar.sd, ar1bar =  rwl.report(rwlcombo)$ar1bar, ar1bar.sd= rwl.report(rwlcombo)$ar1bar.sd))
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data/TreeRing/Processed/Nonhost/DRC-PIPO.rwl"), format="tucson")
+
+# Eldorado Canyon
+
+## CO534
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO534", ".rwl"), full.names=T, ignore.case=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## ELDO08
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/Veblen/ELDO08"), pattern=".rwl", full.names=T)
+rwlj2 <-read.rwl(filej)
+rwljcor2 <- corr.rwl.seg(rwlj2, seg.length=50, pcrit=0.1)
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj2)
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+
+# Remove E18_28
+rwlcombo1 <- rwlcombo[,!(colnames(rwlcombo)=='E18_28')]
+rwlcombo1cor <- corr.rwl.seg(rwlcombo1, seg.length=50, pcrit=0.1)
+
+rwlcombo <- rwlcombo1
+keymet <- rbind(keymet, data.frame(Category= "Climate", SeriesCode="ECC", SiteName= "Eldorado Canyon", Contributors= "combo", Public="ITRDB", Update="combo", Species="PIPO", Lat=keymet[keymet$SeriesCode=="CO534","Lat"], Lon=keymet[keymet$SeriesCode=="CO534","Lon"], Elev=keymet[keymet$SeriesCode=="CO534","Elev"], EarliestYr=rwl.report(rwlcombo)$yr0, LatestYr= rwl.report(rwlcombo)$yr1, Citation=NA, nseries= rwl.report(rwlcombo)$nseries, interrbar= rwl.report(rwlcombo)$interrbar,  interrbar.sd =rwl.report(rwlcombo)$interrbar.sd, ar1bar =  rwl.report(rwlcombo)$ar1bar, ar1bar.sd= rwl.report(rwlcombo)$ar1bar.sd))
+
+### Write to file
+write.rwl(rwlcombo1, fname=here("Data/TreeRing/Processed/Nonhost/ECC-PIPO.rwl"), format="tucson")
+
+# Jefferson County
+
+## CO539
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO539", ".rwl"), full.names=T, ignore.case=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## CO608
+filej <-list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO608", ".rwl"), full.names=T, ignore.case=T)
+rwlj1 <-read.rwl(filej)
+rwljcor1 <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+
+## JFCO08
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/Veblen/JFCO08"), pattern=".rwl", full.names=T)
+rwlj2 <-read.rwl(filej)
+rwljcor2 <- corr.rwl.seg(rwlj2, seg.length=50, pcrit=0.1)
+
+### Remove J2_8
+rwlj3 <- rwlj2[,!(colnames(rwlj2)=='J2_8')]
+rwljcor3 <- corr.rwl.seg(rwlj3, seg.length=50, pcrit=0.1)
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+rwlcombo <- combine.rwl(rwlcombo, rwlj3)
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+
+keymet <- rbind(keymet, data.frame(Category= "Climate", SeriesCode="JCC", SiteName= "Jefferson County", Contributors= "combo", Public="ITRDB", Update="combo", Species="PIPO", Lat=keymet[keymet$SeriesCode=="CO539","Lat"], Lon=keymet[keymet$SeriesCode=="CO539","Lon"], Elev=keymet[keymet$SeriesCode=="CO539","Elev"], EarliestYr=rwl.report(rwlcombo)$yr0, LatestYr= rwl.report(rwlcombo)$yr1, Citation=NA, nseries= rwl.report(rwlcombo)$nseries, interrbar= rwl.report(rwlcombo)$interrbar,  interrbar.sd =rwl.report(rwlcombo)$interrbar.sd, ar1bar =  rwl.report(rwlcombo)$ar1bar, ar1bar.sd= rwl.report(rwlcombo)$ar1bar.sd))
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data/TreeRing/Processed/Nonhost/JCC-PIPO.rwl"), format="tucson")
+
+# Kassler
+## CO030
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO030", ".rwl"), full.names=T, ignore.case=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## CO541
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO541", ".rwl"), full.names=T, ignore.case=T)
+rwlj1 <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+
+keymet <- rbind(keymet, data.frame(Category= "Climate", SeriesCode="KC", SiteName= "Kassler", Contributors= "combo", Public="ITRDB", Update="combo", Species="PIPO", Lat=keymet[keymet$SeriesCode=="CO030","Lat"], Lon=keymet[keymet$SeriesCode=="CO030","Lon"], Elev=keymet[keymet$SeriesCode=="CO030","Elev"], EarliestYr=rwl.report(rwlcombo)$yr0, LatestYr= rwl.report(rwlcombo)$yr1, Citation=NA, nseries= rwl.report(rwlcombo)$nseries, interrbar= rwl.report(rwlcombo)$interrbar,  interrbar.sd =rwl.report(rwlcombo)$interrbar.sd, ar1bar =  rwl.report(rwlcombo)$ar1bar, ar1bar.sd= rwl.report(rwlcombo)$ar1bar.sd))
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data/TreeRing/Processed/Nonhost/KC-PIPO.rwl"), format="tucson")
+
+
+# Turkey Creek Bluff
+## CO675
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO675", ".rwl"), full.names=T, ignore.case=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## CO548
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO548", ".rwl"), full.names=T, ignore.case=T)
+rwlj1 <-read.rwl(filej)
+rwljcor1 <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+
+### Combine
+rwlcombo <-rwlj
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+
+keymet <- rbind(keymet, data.frame(Category= "Climate", SeriesCode="TCC", SiteName= "Turkey Creek Bluff", Contributors= "combo", Public="ITRDB", Update="combo", Species="PIPO", Lat=keymet[keymet$SeriesCode=="CO675","Lat"], Lon=keymet[keymet$SeriesCode=="CO675","Lon"], Elev=keymet[keymet$SeriesCode=="CO675","Elev"], EarliestYr=rwl.report(rwlcombo)$yr0, LatestYr= rwl.report(rwlcombo)$yr1, Citation=NA, nseries= rwl.report(rwlcombo)$nseries, interrbar= rwl.report(rwlcombo)$interrbar,  interrbar.sd =rwl.report(rwlcombo)$interrbar.sd, ar1bar =  rwl.report(rwlcombo)$ar1bar, ar1bar.sd= rwl.report(rwlcombo)$ar1bar.sd))
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data/TreeRing/Processed/Nonhost/TCC-PIPO.rwl"), format="tucson")
+
+# Van Bibber Creek
+## CO550
+filej <-list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO550", ".rwl"), full.names=T, ignore.case=T)
+rwlj <-read.rwl(filej)
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## CO641
+filej <-list.files(here("Data/TreeRing/Raw/Nonhost/ITRDB/data/pub/data/paleo/treering/measurements/northamerica/usa/"), pattern=paste0("CO641", ".rwl"), full.names=T, ignore.case=T)
+rwlj1 <-read.rwl(filej)
+rwljcor1 <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+
+## VBIB08
+filej <- list.files(here("Data/TreeRing/Raw/Nonhost/Veblen/VBIB08"), pattern=".rwl", full.names=T)
+rwlj2 <-read.rwl(filej)
+rwljcor2 <- corr.rwl.seg(rwlj2, seg.length=50, pcrit=0.1)
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+rwlcombo <- combine.rwl(rwlcombo, rwlj2)
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+
+keymet <- rbind(keymet, data.frame(Category= "Climate", SeriesCode="VBC", SiteName= "Van Bibber Creek", Contributors= "combo", Public="ITRDB", Update="combo", Species="PIPO", Lat=keymet[keymet$SeriesCode=="CO550","Lat"], Lon=keymet[keymet$SeriesCode=="CO550","Lon"], Elev=keymet[keymet$SeriesCode=="CO550","Elev"], EarliestYr=rwl.report(rwlcombo)$yr0, LatestYr= rwl.report(rwlcombo)$yr1, Citation=NA, nseries= rwl.report(rwlcombo)$nseries, interrbar= rwl.report(rwlcombo)$interrbar,  interrbar.sd =rwl.report(rwlcombo)$interrbar.sd, ar1bar =  rwl.report(rwlcombo)$ar1bar, ar1bar.sd= rwl.report(rwlcombo)$ar1bar.sd))
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data/TreeRing/Processed/Nonhost/VBC-PIPO.rwl"), format="tucson")
+```
+
+## Write key metadata to file
+```{r}
+write.csv(keymet, here("Data/TreeRing/Processed/nonhost-keymeta.csv"))
+```
+
+# Host data
+## Check crossdating
+
+### Lost Jeep
+```{r}
+
+# Lost Jeep
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/RampartRange/RampartSite3c.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (5 out of 18)
+### 385
+seg.385 <- corr.series.seg(rwl=rwlj, series="385", seg.length=50, pcrit=0.1)
+win <- 1775:1950
+rwlj.yrs <- time(rwlj)
+rwlj.trunc <- rwlj[rwlj.yrs %in% win, ]
+ccf.50 <- ccf.series.rwl(rwl=rwlj.trunc, series="385", seg.length=50, bin.floor=10) # suggests three missing rings in the 1780 to 1829 segment
+win <- 1780:1875
+rwlj.yrs <- time(rwlj)
+rwlj.trunc <- rwlj[rwlj.yrs %in% win, ]
+ccf.30 <- ccf.series.rwl(rwl=rwlj.trunc, series="385", seg.length=20, bin.floor=10) # suggests three missing rings in the 1810 to 1829 segment
+xskel.ccf.plot(rwl=rwlj, series="385", win.start=1820, win.width=40)
+## crossdating this series probably requires going back to the wood, which we don't have. therefore we'll crop the series to only the segment that crossdates well (yr > 1830)
+
+rwlj1 <- clipfun(rwlz=rwlj, series.name="385", clip.year=1829)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### 377
+seg.377 <- corr.series.seg(rwl=rwlj, series="377", seg.length=50, pcrit=0.1)
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series="377", seg.length=50, bin.floor=10)
+win <- 1780:1875
+rwlj.yrs <- time(rwlj)
+rwlj.trunc <- rwlj[rwlj.yrs %in% win, ]
+ccf.20 <- ccf.series.rwl(rwl=rwlj.trunc, series="377", seg.length=20, bin.floor=10) # 
+### suggests low correlation after 1824, not clear that there is an offset
+xskel.ccf.plot(rwl=rwlj, series="377", win.start=1800, win.width=40) # not clear that there is an offset, so let's just retain it
+
+### 410
+seg.410 <- corr.series.seg(rwl=rwlj, series="410", seg.length=50, pcrit=0.1) # correlation declines after 1875
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series="410", seg.length=50, bin.floor=10) 
+win <- 1800:1920
+rwlj.yrs <- time(rwlj)
+rwlj.trunc <- rwlj[rwlj.yrs %in% win, ]
+ccf.20 <- ccf.series.rwl(rwl=rwlj.trunc, series="410", seg.length=20, bin.floor=10) # correlation declines after 1850
+xskel.ccf.plot(rwl=rwlj, series="410", win.start=1800, win.width=50) # correlation declines after 1825, may be offset after 1832
+rwlj1 <- clipfun(rwlz=rwlj, series.name="410", clip.year=1831)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### 388
+series.namex <- "388"
+seg.388 <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1825
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # may be offset after 1800
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # correlation declines after 1800 and might be offset by two years
+rwlj1 <- clipfun(rwlz=rwlj, series.name=series.namex, clip.year=1799)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### 390
+series.namex <- "390"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation is initially low
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) 
+win <- 1900:1980
+rwlj.yrs <- time(rwlj)
+rwlj.trunc <- rwlj[rwlj.yrs %in% win, ]
+ccf.20 <- ccf.series.rwl(rwl=rwlj.trunc, series=series.namex, seg.length=20, bin.floor=10) # correlation declines after 1950 (offset by +1 year) then becomes correlated after about 1920
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=40) 
+## Not entirely clear what's going on with this series - deleted
+rwlj1 <- rwlj[, !colnames(rwlj)==series.namex]
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### 425
+series.namex <- "425"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1825
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10)  # correlation declines after 1800
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=40) # correlation declines after 1770, but doesn't look offset so let's retain
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Lost-Jeep-PSME.rwl"), format="tucson")
+```
+
+### South Rd 30
+```{r}
+
+# South Rd. 30
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/RampartRange/RampartSite6c.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (2 out of 21)
+### 544
+series.namex <- "544"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1)
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10)  
+# period of weak correlation between 1750 and 1824
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=100) # correlation declines after 1800, but doesn't seem to be offset; retain and make no changes
+
+### 575
+series.namex <- "575"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1)
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) #correlation declines after ca 1750, but doesn't seem to be offset 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=100) #retain and make no changes
+SR.rwl <- rwlj
+
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/SouthRoad30-PSME.rwl"), format="tucson")
+
+rwlj1 <- read.rwl(here("Data/OS RAW Measurements/Tucson/AA_21_OS_TRY3_correct.txt")) #South Rd 30 collected by Hart lab in the summer of 2021 and remeasured by Olivia in August 2022
+
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj1cor <- corr.rwl.seg(rwl = rwlj1, seg.length=50, pcrit=0.1, master = rwlj)
+
+## Series with problems (X out of 20)
+### 01A
+series.namex <- "01A"
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10) # weakly correlated throughout entire record
+segplot.j <- corr.series.seg(rwl=rwlj1, series=series.namex, seg.length=50, pcrit=0.1)
+ccf.50 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=50, bin.floor=10) # no obvious offset
+rwlj1 <- rwlj1[,!(colnames(rwlj1)==series.namex )] # remove series
+
+### 09A
+series.namex <- "09A"
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10)   #
+segplot.j <- corr.series.seg(rwl=rwlj1, series=series.namex, seg.length=50, pcrit=0.1) #  correlated weakly initially and then adequately and then weakly
+ccf.50 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=50, bin.floor=10) # it looks like there may be an extra ring added sometime between 1945 and 1994
+rwlj1 <- rwlj1[,!(colnames(rwlj1)==series.namex )] # remove series and retain other core
+
+### 11B
+series.namex <- "11B"
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10)  
+segplot.j <- corr.series.seg(rwl=rwlj1, series=series.namex, seg.length=50, pcrit=0.1) # correlated weakly initially and then not at all
+ccf.50 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=50, bin.floor=10) # no obvious offset
+rwlj1 <- rwlj1[,!(colnames(rwlj1)==series.namex )] # remove series and retain other core
+
+### 18B
+series.namex <- "18B"
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10)   
+segplot.j <- corr.series.seg(rwl=rwlj1, series=series.namex, seg.length=50, pcrit=0.1) # correlated weakly initially and then not at all
+ccf.50 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=50, bin.floor=10) # no obvious offset
+rwlj1 <- rwlj1[,!(colnames(rwlj1)==series.namex )] # remove series and retain other core
+
+### 20A
+series.namex <- "20A"
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10)   # obvious outlier at pith
+rwlj1 <- clipfun(rwlz=rwlj1, series.name=series.namex, clip.year=1880) # clip time series to remove outlier
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10)   # weakly correlated, 
+segplot.j <- corr.series.seg(rwl=rwlj1, series=series.namex, seg.length=50, pcrit=0.1) # correlated weakly initially and then not at all
+ccf.50 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=50, bin.floor=10) # looks like an extra ring was added in the first segment
+ccf.20 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=20, bin.floor=10) # looks like an extra ring was added --> remeasure 
+rwlj1 <- rwlj1[,!(colnames(rwlj1)==series.namex )] # remove tree and consider remeasuring to identify where an extra ring may have been added 
+
+### 20B
+series.namex <- "20B"
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10)   # obvious outlier at pith
+segplot.j <- corr.series.seg(rwl=rwlj1, series=series.namex, seg.length=50, pcrit=0.1) # correlated weakly initially and then not at all
+ccf.50 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=50, bin.floor=10) # looks like an extra ring was added in the first segment
+ccf.20 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=20, bin.floor=10) # looks like an extra ring was added --> remeasure 
+rwlj1 <- rwlj1[,!(colnames(rwlj1)==series.namex )] # remove tree and consider remeasuring to identify where an extra ring may have been added
+
+## 25B
+series.namex <- "25B"
+rwlplot.j <- series.rwl.plot(rwl = rwlj1, series = series.namex , seg.length = 50, bin.floor = 10)   # obvious outlier at pith
+segplot.j <- corr.series.seg(rwl=rwlj1, series=series.namex, seg.length=50, pcrit=0.1) # correlated weakly initially and then not at all
+ccf.50 <- ccf.series.rwl(rwl=rwlj1, series=series.namex, seg.length=50, bin.floor=10) # looks like four missing rings 
+rwlj1 <- rwlj1[,!(colnames(rwlj1)==series.namex )] # remove series and retain other core
+
+### Combine
+rwlcombo <- combine.rwl(SR.rwl, rwlj1)
+
+### Write to file
+#write.rwl(rwlcombo, fname=here("Data/TreeRing/Processed/Host/SouthRoad30-PSME.rwl"), format="tucson")
+```
+
+### W Rd 2111
+```{r}
+
+# W. Rd 211
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/RampartRange/RampartSite2c.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (1 out of 18)
+### 342
+series.namex <- "342"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated then becomes weakly correlated for two periods 1850-1900; 1925-1975
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # 1850-1900 period just looks like a weak correlation
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # 1850-1900 period just looks like a weak correlation; no offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # missing year ca. 1956
+rwlj1 <- rwlj[,!colnames(rwlj)==series.namex] # delete series 
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+
+### Write to file
+write.rwl(rwlj1,fname=here("Data/TreeRing/Processed/Host/West-Road-211-PSME.rwl"), format="tucson")
+```
+
+### Wigwam 1
+```{r}
+# Wigwam 1
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/RampartRange/RampartSite4c.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (6 out of 21)
+### 469
+series.namex <- "469"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated then becomes weakly correlated after ca. 1900
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # looks like series just becomes weakly correlated after about 1900, no offset evident
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # maybe offset after 1890, but not clear so let's retain
+
+### C447
+series.namex <- "C447"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1900
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # declines in correlation after ca 1900
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=100) # looks like it just becomes decoupled after ca. 1830
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # looks like it just becomes decoupled after ca. 1850, no offset so let's retain it
+
+### 485
+series.namex <- "485"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1850
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # declines
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # looks like it just becomes decoupled after ca. 1850, no clear offset so let's retain it
+
+### 442
+series.namex <- "442"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1900
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # declines
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### 445
+series.namex <- "445"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1875
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # declines
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### 450
+series.namex <- "450"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1875
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # declines
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Wigwam-1.rwl"), format="tucson")
+```
+
+### North Inlet
+```{r}
+# North Inlet
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/RMNP/NI_PM.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (8 out of 26)
+### 1001
+series.namex <- "1001"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1925
+ccf.50 <- ccf.series.rwl(rwl=rwlj, series=series.namex, seg.length=50, bin.floor=10) # no evident offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### 965
+series.namex <- "965"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1900
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### WB975
+series.namex <- "975"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially correlated becomes weakly correlated ca. 1900
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### WB1201
+series.namex <- "1201"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially weakly correlated then becomes strongly correlated then decouples again
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=100) # looks like it just becomes weakly correlated, no clear offset 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=100) # looks like it just becomes weakly correlated, no clear offset so let's retain
+
+### WB1155
+series.namex <- "1155"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1825
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### WB1037
+series.namex <- "1037"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1875, then increases around 1775
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### WB1204
+series.namex <- "1204"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1875
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### WB1120
+series.namex <- "1120"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1875
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/North-Inlet-PSME.rwl"), format="tucson")
+```
+
+
+### Summerland Park
+```{r}
+
+# Summerland Park
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/RMNP/SP_PMFin.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (6 out of 32)
+### NI1537
+series.namex <- "NI1537"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1875
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### NI1540
+series.namex <- "NI1540"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # correlation declines after 1775
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=80) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### NI1565
+series.namex <- "NI1565"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # generally not very well correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # looks like it just becomes weakly correlated, no clear offset so let's retain it
+
+### NI1502
+series.namex <- "NI1502"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # weakly correlated in 1875
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # looks like it might be offset by negative one year ca. 1848, lets clip to years >1850
+rwlj1 <- clipfun(rwlz=rwlj, series.name=series.namex, clip.year=1849)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### NI1522
+series.namex <- "NI1522"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially weakly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # looks like it could be offset
+rwlj <- rwlj[,!colnames(rwlj)==series.namex] # remove
+
+### NI1573
+series.namex <- "NI1573"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially weakly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no clear offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no clear offset, so let's retain it
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Summerland-Park-PSME.rwl"), format="tucson")
+```
+
+### Three Island Lake Trail
+```{r}
+
+# Three Island Lake Trail
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/Routt/3-Isle-98pm.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (1 out of 22)
+### TI376
+series.namex <- "TI376"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # initially weakly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no clear offset, retain
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Three-Island-Lake-Trail-PSME.rwl"), format="tucson")
+```
+
+
+### Boulder County 18
+```{r}
+# Boulder County 18
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/BOMO/BoMo18DF.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (3 out of 18)
+### 276
+series.namex <- "276"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # just poorly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # maybe offset after 1950
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=100) # maybe offset after 1950, remove this series
+rwlj <- rwlj[,!colnames(rwlj)==series.namex]
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+### 367
+series.namex <- "367"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # becomes poorly correlated after ca. 1825
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # poorly correlated but not obviously offset, retain
+
+#300
+series.namex <- "300"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # generally poorly correlated, removed
+rwlj <- rwlj[,!colnames(rwlj)==series.namex]
+
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Boulder-County-18-PSME.rwl"), format="tucson")
+```
+
+### Boulder County 19
+```{r}
+# Boulder County 19
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/BOMO/BoMo19DF.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+
+## Series with problems (8 out of 25)
+### 497
+series.namex <- "497"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # generally poorly correlated and first year is 1916; remove
+rwlj <- rwlj[,!colnames(rwlj)==series.namex]
+
+### 464
+series.namex <- "464"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated from ca. 1950 to 1850
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # poorly correlated but not obviously offset; retain
+
+### 469
+series.namex <- "469"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1800
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) # poorly correlated but not obviously offset; retain
+
+### 444
+series.namex <- "444"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1800-1850
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated but not obviously offset; retain
+
+### 443
+series.namex <- "443"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after ca. 1925
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # poorly correlated but not obviously offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated, may be offset by -1 year after ca. 1875
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated, may be offset by -1 year after ca. 1875
+
+rwlj1 <- clipfun(rwlz=rwlj, series.name=series.namex, clip.year=1874)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### 486
+series.namex <- "486"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1775
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated, may be offset by two years
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # poorly correlated, may be offset by two years 
+
+rwlj <- rwlj[,!colnames(rwlj)==series.namex] # remove this series which seems to crossdate poorly
+
+### 509
+series.namex <- "509"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1850
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # poorly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # poorly correlated, no obvious offsets - retain
+
+### 458
+series.namex <- "458"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1925
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # poorly correlated
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated, may be offset by -2
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated, may be offset by -2
+rwlj <- rwlj[,!colnames(rwlj)==series.namex] # remove this series which seems to crossdate poorly
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Boulder-County-19-PSME.rwl"), format="tucson")
+```
+
+### Estes Park
+```{r}
+
+# Estes Park
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/NFrontRange/ESTESPM.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+## Series with problems (13 out of 38)
+### 610
+series.namex <- "610"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1925
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated, but no obvious offset; RETAIN
+
+### 618
+series.namex <- "618"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1925
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated, but no obvious offset; RETAIN
+
+### 626
+series.namex <- "626"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1900
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated, but no obvious offset
+
+### 650
+series.namex <- "650"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated between 1925 & 1850
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1875, win.width=50) # poorly correlated, maybe offset by +1 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated, but no obvious offset; RETAIN
+
+### 649
+series.namex <- "649"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1825
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # poorly correlated, but no obvious offset; RETAIN
+
+### 615
+series.namex <- "615"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated between 1800 and 175
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # poorly correlated, but no obvious offset; may be offset by +2 1825-1849
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # poorly correlated, but no obvious offset; may be offset by +2 1825-1849; 1850-1874
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1850, win.width=50) # poorly correlated, but no obvious offset; may be offset by +2 1825-1849; 1850-1874
+
+rwlj <- rwlj[,!colnames(rwlj)==series.namex] # remove this series which seems to crossdate poorly
+
+
+### 632
+series.namex <- "632"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1775
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) # poorly correlated, but no obvious offset, may be offset by -1 after 1750
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1700, win.width=50) # poorly correlated, but no obvious offset, may be offset by -1 after 1743
+
+rwlj1 <- clipfun(rwlz=rwlj, series.name=series.namex, clip.year=1742)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### 606
+series.namex <- "606"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1825
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) # poorly correlated, but no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1700, win.width=50) # poorly correlated, but no obvious offset; retain
+
+### 659
+series.namex <- "659"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1850
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50)
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1700, win.width=50)
+rwlj <- rwlj[,!colnames(rwlj)==series.namex] # remove poorly correlated
+
+### 607
+series.namex <- "607"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated between 1925-1975 and 1725-1775
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1700, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) # may be offset by -3 1750-1774
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # may be offset by -3 1750-1774, but crossdates fine later - retain
+
+### 639
+series.namex <- "639"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1675-1725, 1775-1825, 1850-1900
+
+rwlj <- rwlj[,!colnames(rwlj)==series.namex] # remove because crossdating seems a little wonky
+
+### 635
+series.namex <- "635"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1725-1800
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # retain no obvious offset
+
+### 602
+series.namex <- "602"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1725-1800
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # retain no obvious offset
+
+### Write to file
+write.rwl(rwlj,fname=here("Data/TreeRing/Processed/Host/Estes-Park-PSME.rwl"), format="tucson")
+```
+
+### Frankenberger Point
+```{r}
+# Frankenberger Pt.
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/NFrontRange/FRANKPM6.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+## Series with problems (2 out of 27)
+### CO95788
+series.namex <- "CO95788"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1650-1725
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1625, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1650, win.width=50) # may be offset by +1 1675-1699
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1675, win.width=50) # may be offset by +1 1675-1699
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1700, win.width=50) 
+
+rwlj1 <- clipfun(rwlz=rwlj, series.name=series.namex, clip.year=1699)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### CO95793
+series.namex <- "CO95793"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1650-1725
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1625, win.width=50) 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1650, win.width=50) # may be offset by +1 1675-1699
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1675, win.width=50) # may be offset by +1 1675-1699
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1700, win.width=50) 
+
+rwlj1 <- clipfun(rwlz=rwlj, series.name=series.namex, clip.year=1699)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Frankenberger-Point-PSME.rwl"), format="tucson")
+```
+
+### Lost Junction
+```{r}
+
+# Lost Junction
+filej <- list.files("/Volumes/GoogleDrive/Shared drives/HartLab/Data/TreeRing/WSBChronos/Series/LJN", pattern=".rwl", full.names=T)
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/NFrontRange/LOSTPM6.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+## Series with problems (0 out of 46)
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Lost-Junction-PSME.rwl"), format="tucson")
+```
+
+### Wild Basin
+```{r}
+# Wild Basin
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/RMNP/WB_PMFin.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+## Series with problems (8 out of 28)
+### WB1367
+series.namex <- "WB1367"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1925-1975 & after 1825
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # may be offset by -1 1775-1799
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # may be offset by -1 1750-1799
+
+rwlj1 <- clipfun(rwlz=rwlj, series.name=series.namex, clip.year=1799)
+rwlj1cor <- corr.rwl.seg(rwlj1, seg.length=50, pcrit=0.1)
+rwlj <- rwlj1
+
+### WB1339
+series.namex <- "WB1339"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1900-1980 & 1775-1850
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # no obvious offset
+
+### WB1354
+series.namex <- "WB1354"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1900-1980 & 1775-1850
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # no obvious offset
+
+### WB1367
+series.namex <- "WB1367"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1900-1980 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no obvious
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1950, win.width=50) # no obvious offset
+
+### WB1364
+series.namex <- "WB1364"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1925-1980 
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no obvious
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1950, win.width=50) # no obvious offset
+
+### WB1337
+series.namex <- "WB1337"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated after 1750
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1700, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1725, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # no obvious offset
+
+### WB1333
+series.namex <- "WB1333"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1750-1850 & 1950-1980
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1750, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1775, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1800, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1825, win.width=50) # no obvious offset
+
+### WB1371
+series.namex <- "WB1371"
+seg.x <- corr.series.seg(rwl=rwlj, series=series.namex, seg.length=50, pcrit=0.1) # poorly correlated 1925-1980
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1900, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1925, win.width=50) # no obvious offset
+xskel.ccf.plot(rwl=rwlj, series=series.namex, win.start=1950, win.width=50) # no obvious offset
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Wild-Basin-PSME.rwl"), format="tucson")
+```
+
+### South Hollowell
+```{r}
+# S. Hollowell
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/NFrontRange/HOLLPM3.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+## Series with problems (0 out of 48)
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/South-Hollowell-PSME.rwl"), format="tucson")
+```
+
+### Sugarloaf Saddle
+```{r}
+# Sugarloaf Saddle
+rwlj <-read.rwl(here("Data/TreeRing/Raw/Host/Veblen/NFrontRange/SUGARPM.rwl"))
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+## Series with problems (0 out of 40)
+
+### Write to file
+write.rwl(rwlj, fname=here("Data/TreeRing/Processed/Host/Sugarloaf-Saddle-PSME.rwl"), format="tucson")
+```
+
+## Summarize site data
+```{r}
+BOMO <- read.csv(here("Data/TreeRing/Raw/Host/Veblen/BOMO/SiteInfo.csv"))
+BOMO$Series.Code <- c("B18", "B19")
+NFR <- read.csv(here("Data/TreeRing/Raw/Host/Veblen/NFrontRange/SiteInfo.csv"))[-2,]
+NFR$Series.Code <- c("SH", "EP", "LJ", "SS", "FP")
+RR<- read.csv(here("Data/TreeRing/Raw/Host/Veblen/RampartRange/SiteInfo.csv"))[c(-1, -5),]
+RR$Series.Code <- c( "WR", "JP", "WW",  "SR")
+RMNP <- read.csv(here("Data/TreeRing/Raw/Host/Veblen/RMNP/SiteInfo.csv"))
+RMNP$Series.Code <- c("NI", "SP", "WB")
+Routt <- read.csv(here("Data/TreeRing/Raw/Host/Veblen/Routt/SiteInfo.csv"))
+Routt$Series.Code <- "TI"
+
+host.meta <- do.call(rbind, list(BOMO, NFR, RR, RMNP, Routt))
+
+host.meta<- data.frame(Category= "WSB", SeriesCode= host.meta$Series.Code, SiteName= host.meta$Site, Contributors= "Veblen lab", Public="No", Update="No", Species="PSME", Lat=host.meta$Lat, Lon=host.meta$Long, Elev=host.meta$Elevation, EarliestYr=NA, LatestYr= NA, Citation=NA)
+```
+
+```{r}
+# Import processed data
+processed.host.rwl <- list.files(here("Data/TreeRing/Processed/Host"), pattern=".rwl", full.names=T)
+names(processed.host.rwl) <-  c("B18", "B19", "EP", "FP", "JP", "LJ", "NI", "SH", "SR", "SS", "SP", "TI", "WR", "WW", "WB")
+processed.host.rwl <- lapply(processed.host.rwl, read.rwl)
+
+host.meta$nseries <- NA
+host.meta$interrbar <- NA
+host.meta$interrbar.sd <- NA
+host.meta$ar1bar <- NA
+host.meta$ar1bar.sd <- NA
+for(j in host.meta$SeriesCode){
+  rep <-rwl.report(processed.host.rwl[[j]]) 
+  host.meta[host.meta$`SeriesCode`==j, "nseries"] <- rep$nseries
+  host.meta[host.meta$`SeriesCode`==j, "interrbar"] <- rep$interrbar
+  host.meta[host.meta$`SeriesCode`==j, "interrbar.sd"] <- rep$interrbar.sd
+  host.meta[host.meta$`SeriesCode`==j, "ar1bar"] <- rep$ar1bar
+  host.meta[host.meta$`SeriesCode`==j, "ar1bar.sd"] <- rep$ar1bar.sd
+  host.meta[host.meta$`SeriesCode`==j, "EarliestYr"] <- rep$yr0
+  host.meta[host.meta$`SeriesCode`==j, "LatestYr"] <- rep$yr1
+}
+
+write.csv(host.meta, here("Data/TreeRing/Processed/host-keymeta.csv"))
+```
+

@@ -1,0 +1,381 @@
+{
+  "xmlId" : "67605",
+  "NOAAStudyId" : "27463",
+  "studyName" : "Woodhouse - Monarch Pass - PIPO - ITRDB CO669",
+  "doi" : "https://doi.org/10.25921/p3rz-2r66",
+  "uuid" : "72d34721-9f2f-4746-be78-79dddca0313f",
+  "dataPublisher" : "NOAA",
+  "contactInfo" : {
+    "type" : "CONTACT INFORMATION",
+    "shortName" : "DOC/NOAA/NESDIS/NCEI",
+    "longName" : "National Centers for Environmental Information, NESDIS, NOAA, U.S. Department of Commerce ",
+    "address" : "325 Broadway, E/NE31",
+    "city" : "Boulder",
+    "state" : "CO",
+    "postalCode" : "80305-3328",
+    "country" : "USA",
+    "dataCenterUrl" : "https://www.ncei.noaa.gov/products/paleoclimatology",
+    "email" : "paleo@noaa.gov",
+    "phone" : "828-271-4800",
+    "fax" : "303-497-6513",
+    "constraints" : "Please cite original publication, online resource, dataset and publication DOIs (where available), and date accessed when using downloaded data. If there is no publication information, please cite investigator, title, online resource, and date accessed. The appearance of external links associated with a dataset does not constitute endorsement by the Department of Commerce/National Oceanic and Atmospheric Administration of external Web sites or the information, products or services contained therein. For other than authorized activities, the Department of Commerce/NOAA does not exercise any editorial control over the information you may find at these locations. These links are provided consistent with the stated purpose of this Department of Commerce/NOAA Web site."
+  },
+  "dataType" : "TREE RING",
+  "investigators" : "Woodhouse, C.A.; Losleben, M.V.; Chowanski, K.; Lukas, J.J.",
+  "investigatorDetails" : [ {
+    "firstName" : "Connie",
+    "lastName" : "Woodhouse",
+    "initials" : "C.A.",
+    "orcId" : "0000-0003-0545-9753"
+  }, {
+    "firstName" : "Mark",
+    "lastName" : "Losleben",
+    "initials" : "M.V.",
+    "orcId" : null
+  }, {
+    "firstName" : "Kurt",
+    "lastName" : "Chowanski",
+    "initials" : "K.",
+    "orcId" : null
+  }, {
+    "firstName" : "Jeff",
+    "lastName" : "Lukas",
+    "initials" : "J.J.",
+    "orcId" : null
+  } ],
+  "version" : "1.0",
+  "funding" : [ ],
+  "studyNotes" : "Upper Missouri River Basin Streamflow project NOAA Template Raw Measurements file added 2020-01-15.",
+  "onlineResourceLink" : "https://www.ncei.noaa.gov/access/paleo-search/study/27463",
+  "difMetadataLink" : "http://www1.ncdc.noaa.gov/pub/data/metadata/published/paleo/dif/xml/noaa-tree-27463.xml",
+  "isoMetadataLink" : "http://www1.ncdc.noaa.gov/pub/data/metadata/published/paleo/iso/xml/noaa-tree-27463.xml",
+  "originalSource" : null,
+  "dataTypeInformation" : "https://www.ncei.noaa.gov/products/paleoclimatology/tree-ring",
+  "studyCode" : "CO669",
+  "scienceKeywords" : [ "PIPO", "ponderosa pine", "western yellow pine", "Pinus ponderosa Douglas ex C. Lawson" ],
+  "reconstruction" : "N",
+  "contributionDate" : "2019-05-17",
+  "entryId" : "noaa-tree-27463",
+  "earliestYearBP" : 323,
+  "mostRecentYearBP" : -49,
+  "earliestYearCE" : 1627,
+  "mostRecentYearCE" : 1999,
+  "publication" : [ ],
+  "site" : [ {
+    "NOAASiteId" : "57975",
+    "siteName" : "Monarch Pass",
+    "siteCode" : null,
+    "mappable" : "Y",
+    "locationName" : "Continent>North America>United States Of America>Colorado",
+    "geo" : {
+      "geoType" : "Feature",
+      "geometry" : {
+        "type" : "POINT",
+        "coordinates" : [ "38.45", "-106.38333" ]
+      },
+      "properties" : {
+        "southernmostLatitude" : "38.45",
+        "northernmostLatitude" : "38.45",
+        "westernmostLongitude" : "-106.38333",
+        "easternmostLongitude" : "-106.38333",
+        "minElevationMeters" : "3650",
+        "maxElevationMeters" : "3650"
+      }
+    },
+    "paleoData" : [ {
+      "dataTableName" : "CO669",
+      "NOAADataTableId" : "39883",
+      "earliestYear" : 1627,
+      "mostRecentYear" : 1999,
+      "timeUnit" : "CE",
+      "earliestYearBP" : 323,
+      "mostRecentYearBP" : -49,
+      "earliestYearCE" : 1627,
+      "mostRecentYearCE" : 1999,
+      "coreLengthMeters" : null,
+      "dataTableNotes" : null,
+      "species" : [ {
+        "speciesCode" : "PIPO",
+        "scientificName" : "Pinus ponderosa Douglas ex C. Lawson",
+        "resourceId" : null,
+        "commonName" : [ "ponderosa pine", "western yellow pine" ]
+      } ],
+      "dataFile" : [ {
+        "fileUrl" : "https://www.ncei.noaa.gov/pub/data/paleo/treering/measurements/correlation-stats/co669.txt",
+        "urlDescription" : "Correlation Stats",
+        "linkText" : "co669.txt",
+        "variables" : [ ],
+        "NOAAKeywords" : [ "earth science>paleoclimate>tree-ring>width>ring width" ]
+      }, {
+        "fileUrl" : "https://www.ncei.noaa.gov/pub/data/paleo/treering/measurements/northamerica/usa/co669.rwl",
+        "urlDescription" : "Raw Measurements",
+        "linkText" : "co669.rwl",
+        "variables" : [ {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "age variable>age",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "time unit>age unit>year Common Era",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : null,
+          "cvFormat" : "Numeric",
+          "cvShortName" : null
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : null
+        } ],
+        "NOAAKeywords" : [ "earth science>paleoclimate>tree-ring>width>ring width" ]
+      }, {
+        "fileUrl" : "https://www.ncei.noaa.gov/pub/data/paleo/treering/measurements/northamerica/usa/co669-noaa.rwl",
+        "urlDescription" : "Raw Measurements - NOAA Template File",
+        "linkText" : "co669-noaa.rwl",
+        "variables" : [ {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "age variable>age",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "time unit>age unit>year Common Era",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : null,
+          "cvFormat" : "Numeric",
+          "cvShortName" : "age_CE"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop05a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop05a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop05b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop05b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop11a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop11a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop11b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop11b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop12a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop12a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop12b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop12b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop13a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop13a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop13b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop13b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop21a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop21a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop21b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop21b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop22a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop22a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop22b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop22b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop23a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop23a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop23b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop23b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop24a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop24a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop24b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop24b_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop25a; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop25a_raw"
+        }, {
+          "cvDataType" : "TREE RING",
+          "cvWhat" : "physical property>width>total ring width",
+          "cvMaterial" : null,
+          "cvError" : null,
+          "cvUnit" : "length unit>millimeter",
+          "cvSeasonality" : null,
+          "cvDetail" : null,
+          "cvMethod" : null,
+          "cvAdditionalInfo" : "Tree ID: mop25b; units are 0.01 mm if end-of-series marker is 999 and 0.001 mm if end-of-series marker is -9999",
+          "cvFormat" : "Numeric",
+          "cvShortName" : "mop25b_raw"
+        } ],
+        "NOAAKeywords" : [ "earth science>paleoclimate>tree-ring>width>ring width" ]
+      } ]
+    } ]
+  } ],
+  "reference" : {
+    "pastThesaurusSkos" : "https://www.ncei.noaa.gov/access/paleo-search/skos/past-thesaurus.rdf",
+    "pastThesaurusExplorer" : "https://www.ncei.noaa.gov/access/paleo-search/cvterms",
+    "gcmdKeywordThesaurus" : "https://earthdata.nasa.gov/earth-observation-data/find-data/idn/gcmd-keywords"
+  }
+}

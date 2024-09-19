@@ -1,0 +1,219 @@
+---
+title: "Supplemental code"
+author: "Sarah Hart"
+email: "sarah.hart@colostate.edu"
+date: "May 10, 2023"
+output: 
+  bookdown::html_document2:
+    code_folding: hide
+    toc: TRUE
+    toc_depth: 4
+    toc_float: TRUE
+    collapsed: FALSE
+    theme: spacelab
+    fig_caption: TRUE
+    number_sections: FALSE
+---
+Briefly, here we we matched nonhost sites with host sites based on the following criteria:
+(1) length of temporal overlap
+(2) distance between sites
+(3) correlation between chronologies
+
+```{r setup, echo=T, results=T, message=F, warning=TRUE, progress=FALSE}
+knitr::opts_chunk$set(
+	echo = T,
+	fig.align = "center",
+	fig.height = 4,
+	fig.width = 7,
+	out.width= "504pt",
+	message = FALSE,
+	warning = FALSE,
+	dpi = 300,
+	progress = FALSE
+)
+# Set seed
+set.seed(2020)
+
+### Import libraries
+if (!require("pacman")){install.packages("pacman")}
+pacman::p_load(
+  here, # easy file structure
+  tidyverse, # data manipulation
+  ggplot2, # figures
+  patchwork, # combining figures
+  dplR, # basic dendrochronology
+  zoo, # time series
+  knitr, # markdown documents
+  kableExtra, # tables in markdown
+  flextable, # other table options
+  bookdown, # figure numbering in markdown
+  sf, # spatial data (new pkg)
+  ncdf4, #import ncdf files
+  raster, # older package for working with raster data
+  terra, # newer package for working with raster data
+  rgdal # older package that provides access to projection/transformation operations from the 'PROJ' library
+) 
+```
+
+
+
+# Import data
+## Import climate data
+```{r}
+dir.create(here("Data", "Spatial", "AETCWD"), showWarnings = FALSE)
+temp <- here("Data", "Spatial", "AETCWD", "Rodmandata.zip")
+if(!file.exists(temp)){
+  download.file("https://datadryad.org/stash/downloads/file_stream/369982", temp, mode="wb")
+  #unzip(temp, exdir=here("Data/Spatial/Climate/TraitBasedApproach_Rodman")) #needs to be unzipped manually for some reason
+}
+aet <- rast(here("Data/Spatial/AETCWD/TraitBasedApproach_Rodman/AET and CWD/AET_1981-2010.tif"))
+cwd <- rast(here("Data/Spatial/AETCWD/TraitBasedApproach_Rodman/AET and CWD/CWD_1981-2010.tif"))
+```
+
+```{r DL_NADA}
+if(!file.exists(here("Data", "Spatial", "NADA"))){
+  dir.create(here("Data", "Spatial", "NADA"), showWarnings = FALSE)
+  temp <- here("Data", "Spatial", "NADA", "nada_hd2_cl.nc")
+  download.file("https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/nada_hd2_cl.nc", temp)
+}
+
+nc_data <- nc_open(here("Data", "Spatial", "NADA", "nada_hd2_cl.nc"))
+lon <- ncvar_get(nc_data, "lon")
+lat <- ncvar_get(nc_data, "lat")
+t <- ncvar_get(nc_data, "time")
+fillvalue <- ncatt_get(nc_data, "pdsi", "_FillValue")
+
+nada.array <- ncvar_get(nc_data, "pdsi")
+nc_close(nc_data)
+nada.array[nada.array== fillvalue ] <- NA
+
+nada <-raster(nada.array[1701,,], xmn=min(lon), xmx=max(lon), ymn=min(lat), ymx=max(lat), crs=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0"))
+nada <- flip(nada, direction="y")
+years <- 1702:length(t)
+for(j in years){
+  r <- raster(nada.array[j,,], xmn=min(lon), xmx=max(lon), ymn=min(lat), ymx=max(lat), crs=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0"))
+  r <- flip(r, direction="y")
+  nada <- stack(nada, r)
+  r <- NULL
+}
+```
+
+## Import metadata
+```{r}
+host.meta <- read.csv(here("Data/TreeRing/Processed/host-keymeta.csv"))
+nonhost.meta <- read.csv(here("Data/TreeRing/Processed/nonhost-keymeta.csv"))
+```
+## Import ring width data
+### Host sites
+```{r}
+host.rwls <- list.files(here("Data/TreeRing/Processed/Host"), pattern=".rwl", full.names=T)
+names(host.rwls) <-  c("B18", "B19", "EP", "FP", "JP", "LJ", "NI", "SH", "SR", "SS", "SP", "TI", "WR", "WW", "WB")
+host.rwls <- lapply(host.rwls, read.rwl)
+```
+
+### Nonhost Sites
+```{r}
+nonhost.rwls <- list.files(here("Data/TreeRing/Processed/NonHost"), full.names = T, pattern=".rwl")[-1:-2]
+nonhost.rwls <- lapply(nonhost.rwls, read.rwl)
+names(nonhost.rwls) <- c("CO037", "CO040", "CO526", "CO527", "CO528", "CO529", "CO530", "CO531",  "CO534", "CO538", "CO542", "CO544", "CO551", "CO555", "CO557", "CO558", "CO559", "CO560", "CO564", "CO565", "CO568", "CO569", "CO570", "CO588", "CO590", "CO591", "CO594", "CO596",  "CO601","CO607", "CO611", "CO622",  "CO627", "CO639",  "CO654", "CO659",  "CO666", "CO669", "DMC", "DRC", "ECC", "JCC", "KC", "TCC", "VBC")
+```
+
+## Detrend
+### Host sites
+```{r}
+host.rwis <- lapply(host.rwls, detrend, method = "ModNegExp")
+host.rwis <- lapply(host.rwis, detrend, method = "Spline", nyrs = 30)
+```
+
+### Nonhost Sites
+```{r}
+nonhost.rwis <- lapply(nonhost.rwls, detrend, method = "ModNegExp")
+nonhost.rwis <- lapply(nonhost.rwis, detrend, method = "Spline", nyrs = 30)
+```
+
+## Build chronologies
+### Host sites
+```{r}
+host.crns <- lapply(host.rwis, chron, prewhiten = TRUE, prefix="")
+host.crns <- lapply(host.crns, "[",c(-1, -3))
+host.crns.ts <- lapply(host.crns, FUN=function(x){return( ts(x, start=min(as.numeric(row.names(x)))) )})
+host.crns.mts<- do.call(cbind, host.crns.ts)
+```
+
+### Nonhost sites
+```{r}
+nonhost.crns <- lapply(nonhost.rwis, chron, prewhiten = TRUE, prefix="")
+nonhost.crns <- lapply(nonhost.crns, "[",c(-1, -3))
+nonhost.crns.ts <- lapply(nonhost.crns, FUN=function(x){return( ts(x, start=min(as.numeric(row.names(x)))) )})
+nonhost.crns.mts<- do.call(cbind, nonhost.crns.ts)
+```
+
+# Match nonhost sites with host sites
+```{r}
+host.keymet.sub <- host.meta %>% filter(SeriesCode %in% colnames(host.crns.mts))
+nonhost.keymet.sub <- nonhost.meta %>% filter(SeriesCode %in% colnames(nonhost.crns.mts))
+nonhost.keymet.sub <- nonhost.keymet.sub[!is.na(nonhost.keymet.sub$Lat)==T,]
+```
+
+## Distance bewteen points
+```{r}
+host.keymet.sub.pts <-  st_as_sf(x = host.keymet.sub, 
+                        coords = c("Lon", "Lat"),
+                        crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% 
+  st_transform("epsg:26913")
+nonhost.keymet.sub.pts <-  st_as_sf(x = nonhost.keymet.sub,
+                        coords = c("Lon", "Lat"),
+                        crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% 
+  st_transform("epsg:26913")
+
+
+dists <- st_distance(host.keymet.sub.pts, nonhost.keymet.sub.pts, by_element=F) 
+row.names(dists)<- colnames(host.crns.mts)
+colnames(dists)<- nonhost.keymet.sub$SeriesCode
+```
+
+## Calculate correlation between chronologies
+```{r}
+cor.mat <- cor(cbind(host.crns.mts, nonhost.crns.mts), use="pairwise.complete.obs")
+row.names(cor.mat) <- c(colnames(host.crns.mts), colnames(nonhost.crns.mts))
+colnames(cor.mat) <- c(colnames(host.crns.mts), colnames(nonhost.crns.mts))
+```
+
+###
+```{r}
+res <- data.frame(host=colnames(host.crns.mts), nonhost1=NA, nonhost2=NA, nonhost3=NA,  nonhost1.r=NA, nonhost2.r=NA, nonhost3.r=NA, nonhost1.d=NA, nonhost2.d=NA, nonhost3.d=NA, AET=NA, CWD=NA, r.hostxNADA=NA)
+for(j in res$host){
+  #(1) length of temporal overlap
+  lastyrj <- host.keymet.sub %>% dplyr::filter(SeriesCode == j) %>% pull(LatestYr )
+  #lastyrj <- 2000
+  dists.j <- dists[j, which(nonhost.keymet.sub$LatestYr >=lastyrj )]
+  dists.j <- unclass(dists.j)
+  dists.j <- dists.j[dists.j <= 150000] 
+  cor.matj <- cor.mat[j, names(dists.j)]
+  top3 <- sort(cor.mat[j, names(dists.j)],decreasing=T)[1:3]
+  res[res$host==j, c("nonhost1", "nonhost2", "nonhost3")] <- names(top3)
+  res[res$host==j, c("nonhost1.r", "nonhost2.r", "nonhost3.r")] <- cor.matj[names(top3)]
+  res[res$host==j, c("nonhost1.d", "nonhost2.d", "nonhost3.d")] <-  dists.j[names(top3)]
+  res[res$host==j,"AET"] <- extract(aet, host.keymet.sub.pts[host.keymet.sub.pts$SeriesCode==j,], method="bilinear", ID=F)
+  res[res$host==j,"CWD"] <- extract(cwd, host.keymet.sub.pts[host.keymet.sub.pts$SeriesCode==j,], method="bilinear", ID=F)
+  
+  nada.ts <- ts(t(extract(nada, host.keymet.sub.pts[host.keymet.sub.pts$SeriesCode==j,], ID=F)), start=1700)
+   res[res$host==j, ]$r.hostxNADA <- cor(cbind(host.crns.mts[,colnames(host.crns.mts)==j], nada.ts), use="pairwise.complete.obs")[1,2]
+
+}
+
+write.csv(res, here("Results/hostXnonhost.csv"), row.names=F)
+```
+
+###
+```{r}
+res2 <- res
+res2$mean.r <- res2 %>% dplyr::select(nonhost1.r:nonhost3.r) %>% rowMeans(na.rm=T)
+
+res2 <- res2[res2$r.hostxNADA>0.2,]
+res2 <- res2[res2$mean.r>0.2,]
+res$host[which(!(res$host %in% res2$host))]
+nrow(res2)
+write.csv(res2, here("Results/hostXnonhost-subset.csv"), row.names=F)
+```
+

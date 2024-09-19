@@ -1,0 +1,8 @@
+Category,SeriesCode,SiteName,Contributors,Public,Update,Species,Lat,Lon,Elev,EarliestYr,LatestYr,Include
+Climate,AGPE,Al Gulch,"Donnegan, J.A. & Veblen, T.T.",No,No,PIEN,39.26666667,-105.6,2987,,,N
+Climate,AGPF,Al Gulch,"Donnegan, J.A. & Veblen, T.T.",No,No,PIFL,39.26666667,-105.6,2987,,,N
+Climate,DRI,Deer Ridge,"Veblen, T.T.",No,No,PIPO,40.36666667,-105.5666667,2580,,,N
+Climate,DRI08,Deer Ridge UPDATE 2008,"Veblen, T.T.",No,DRI,PIPO,40.36666667,-105.5666667,2580,,,N
+Climate,ELDO08,Eldorado Canyon,"Veblen, T.T.",No,CO534,PIPO,39.933333,-105.266667,1680,,,N
+Climate,JFCO08,Jefferson County UPDATE 2008,"Veblen, T.T.",No,CO539,PIPO,,,,,,N
+Climate,VBIB08,Van Bibber Creek UPDATE 2008,"Veblen, T.T.",No,CO550,PIPO,,,,,,N
