@@ -36,6 +36,8 @@ vignettes/*.pdf
 *.zip
 # All spatial data
 Spatial/
+# Tree-ring measurements not used here
+SANTIAGO/
 # All results
 Results/
 # Manuscript drafts
