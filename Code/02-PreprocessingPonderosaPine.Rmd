@@ -1,0 +1,594 @@
+---
+title: "Preprocessing of ponderosa pine chronologies"
+author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
+email: "sarah.hart@colostate.edu"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output: 
+   officedown::rdocx_document:
+     reference_docx: Template.docx
+bibliography: references.bib
+csl: "`r here::here('citationstyle.csl')`"
+link-citations: true
+urlcolor: blue
+linkcolor: blue
+citationcolor: blue
+---
+
+```{r setup,include=FALSE, results='hide'}
+knitr::opts_chunk$set(
+  echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	progress = FALSE,
+	cache = FALSE,
+	dpi = 300,
+  fig.align = 'center'
+)
+
+set.seed(513)
+options(repos = c(CRAN = "http://cran.rstudio.com"))
+options(timeout=60*30) # timeout downloads that last longer than 30 minutes
+
+### Import libraries
+if (!require("remotes"))  install.packages("remotes")
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  here, # easy file structure
+  rmarkdown, # markdown
+  flextable, # table creation
+  officer, # word document creation
+  officedown, # word document creation
+  tidyverse, # data manipulation
+  dplR, # basic dendrochronology
+  dfoliatR, # dendroecology 
+  zoo # time series
+) 
+
+proj.proj <- 4629
+
+source(here("Code", "TreeRingfuncs.R"))
+
+### Set table defaults 
+set_flextable_defaults(
+  font.family="Times", 
+  font.size=12,
+  line_spacing=1,
+  padding.bottom=1,
+  padding.top=1,
+  text.align='center')
+
+# Set directory structure for project
+dir.create(here("Data", "TreeRing", "Processed"), showWarnings = FALSE)
+dir.create(here("Data", "TreeRing", "Processed", "NonHost"), showWarnings = FALSE)
+```
+
+# Overview
+## Compile metadata
+```{r KeyMetaITDRB, results=F, echo=F}
+
+#### ITDRB ####
+# list files downloaded from the ITDRB
+x <- list.files(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa"), pattern="-noaa.rwl", full.names=T)
+
+# set up empty data frame to hold results
+N <- length(x)
+keymet <- data.frame(SeriesCode= character(N), SiteName= character(N), Contributors= character(N), Lat=NA, Lon=NA, Elev=numeric(N), nseries=NA, FirstYear=NA, LastYear=NA, interrbar=NA, interrbar.sd=NA, ar1bar=NA, ar1bar.sd=NA)
+  
+# iterate through files and extract metadata
+for(j in 1:N){
+  filej <- x[[j]]
+  keymet[j, "SeriesCode"]<- strsplit(readLines(con=filej, n=1), split="ITRDB ")[[1]][2]
+  keymet[j, "SiteName"]<- strsplit(readLines(con=filej, n=1), split=" - ")[[1]][2]
+  keymet[j, "Contributors"]<- strsplit(readLines(con=filej, n=35)[35], split="Investigators: ")[[1]][2]
+  keymet[j, "Lat"]<- strsplit(readLines(con=filej, n=55)[55], split="# Northernmost_Latitude: ")[[1]][2]
+  keymet[j, "Lon"]<- strsplit(readLines(con=filej, n=57)[57], split="# Easternmost_Longitude: ")[[1]][2]
+  keymet[j, "Elev"]<- strsplit(readLines(con=filej, n=59)[59], split="# Elevation: ")[[1]][2]
+}
+
+### Calculate basic chronology statistics
+for(j in 1:nrow(keymet)){
+  series <- as.character(keymet[j, "SeriesCode"])
+  site <- keymet[j, "SiteName"]
+  series.site <- gsub( " ", "-",paste(series, site))
+
+  filej <- list.files(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa"),pattern=paste0(series, ".rwl"), full.names=T, ignore.case=T)
+  
+  skip = FALSE
+  
+  tryCatch(rwlj  <- read.rwl(filej), error = function(e) { skip = TRUE})
+   if(skip==TRUE) {next} else{
+    rwl.reportj <- rwl.report(rwlj)
+    rwl.summaryj <- summary.rwl(rwlj)
+     keymet[keymet$`SeriesCode`==series, "nseries"] <- rwl.reportj$nSeries # calculate the number of series
+     keymet[keymet$`SeriesCode`==series, "FirstYear"] <- rwl.reportj$firstYear# calculate the number of series
+     keymet[keymet$`SeriesCode`==series, "LastYear"] <- rwl.reportj$lastYear# calculate the number of series
+  
+    keymet[keymet$`SeriesCode`==series, "interrbar"] <- rwl.reportj$meanInterSeriesCor # calculate mean interseries correlation
+    keymet[keymet$`SeriesCode`==series, "interrbar.sd"] <- rwl.reportj$sdInterSeriesCor# calculate sd interseries correlation
+    keymet[keymet$`SeriesCode`==series, "ar1bar"] <- rwl.reportj$meanAR1 # calculate mean first order autocorrelation
+    keymet[keymet$`SeriesCode`==series, "ar1bar.sd"] <- rwl.reportj$sdAR1 # calculate sd first order autocorrelation
+    
+    #### Write to file
+    write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Nonhost", paste0(series, ".rwl")), format="tucson")
+  }
+}
+
+```
+
+```{r KeyMetaVeblen, results=F, echo=F}
+#### VEBLEN LAB ####
+DRI.rwl <- here("Data", "TreeRing", "Raw", "Nonhost", "Veblen",'DRI.rwl')
+DRIre.rwl <- here("Data", "TreeRing", "Raw", "Nonhost", "Veblen", 'DRIre.rwl')
+ELDOre.rwl <- here("Data", "TreeRing", "Raw", "Nonhost", "Veblen", 'ELDOre.rwl')
+JEFFre.rwl <- here("Data", "TreeRing", "Raw", "Nonhost", "Veblen", 'JEFFre.rwl')
+VANBre.rwl <- here("Data", "TreeRing", "Raw", "Nonhost", "Veblen", 'VANBre.rwl')
+veblen.series <- list(DRI.rwl, DRIre.rwl, ELDOre.rwl, JEFFre.rwl, VANBre.rwl)
+names(veblen.series) <- c("DRI", "DRIre", "ELDOre", "JEFFre", "VANBre")
+
+keymet.veblen <- read.csv(here("Data", "TreeRing", "Raw", "Nonhost", "Veblen", "SiteInfo.csv"))
+keymet.veblen$nseries=NA
+keymet.veblen$FirstYear=NA
+keymet.veblen$LastYear=NA
+keymet.veblen$interrbar=NA
+keymet.veblen$interrbar.sd=NA
+keymet.veblen$ar1bar=NA
+keymet.veblen$ar1bar.sd=NA
+
+
+### Calculate basic chronology statistics
+for(j in 1:nrow(keymet.veblen)){
+  series <- as.character(keymet.veblen[j, "SeriesCode"])
+  site <- keymet.veblen[j, "SiteName"]
+  series.site <- gsub( " ", "-",paste(series, site))
+  rwlj <- read.rwl(veblen.series[[series]])
+  rwl.reportj <- rwl.report(rwlj)
+  keymet.veblen[keymet.veblen$`SeriesCode`==series, "nseries"] <- rwl.reportj$nSeries # calculate the number of series
+  keymet.veblen[keymet.veblen$`SeriesCode`==series, "FirstYear"] <- rwl.reportj$firstYear# calculate the number of series
+  keymet.veblen[keymet.veblen$`SeriesCode`==series, "LastYear"] <- rwl.reportj$lastYear# calculate the number of series
+  keymet.veblen[keymet.veblen$`SeriesCode`==series, "interrbar"] <- rwl.reportj$meanInterSeriesCor # calculate mean interseries correlation
+  keymet.veblen[keymet.veblen$`SeriesCode`==series, "interrbar.sd"] <- rwl.reportj$sdInterSeriesCor# calculate sd interseries correlation
+  keymet.veblen[keymet.veblen$`SeriesCode`==series, "ar1bar"] <- rwl.reportj$meanAR1 # calculate mean first order autocorrelation
+  keymet.veblen[keymet.veblen$`SeriesCode`==series, "ar1bar.sd"] <- rwl.reportj$sdAR1 # calculate sd first order autocorrelation
+  
+    #### Write to file
+    write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Nonhost", paste0(series, ".rwl")), format="tucson")
+
+}
+
+keymet <- rbind(keymet, keymet.veblen)
+```
+
+# Combine recollections with original data
+We computed the correlation between each tree-ring series using the *corr.rwl.seg()* function in the dplR package. 
+
+## Deer Mountain
+
+```{r DMdat, results=F, echo=F}
+## CO532
+filej <- list.files(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa"), pattern=paste0("CO532", ".rwl"), full.names=T, ignore.case=T)
+rwlj <-read.rwl(filej)
+
+# CO598
+filej <- list.files(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa"), pattern=paste0("CO598", ".rwl"), full.names=T, ignore.case=T)
+rwlj1 <-read.rwl(filej)
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+rwlj1 <- rwlj1[,-x]
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+```
+
+```{r, DMfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Deer Mountain. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r DMtab, tab.id="DMtab", tab.cap="Series statistics and cross-dating notes for the Deer Mountain site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% colnames(rwlj1), "Yes", "No")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r DMMeta, results=F, echo=F}
+## Compile metadata ##
+keymet.combo <- keymet %>% filter(SeriesCode=="CO532") 
+keymet.combo$SeriesCode <- "DMcombo"
+keymet.combo$Contributors <- "Graybill, D.A.; Woodhouse, C.A.; Lukas, J.J.; Wilkinson Kaye, M."
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+### Write to file ###
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "DMCombo.rwl"), format="tucson")
+```
+
+\pagebreak
+
+## Deer Ridge
+```{r DRdat, results=F, echo=F}
+## Original (Veblen et al. 2000)
+rwlj <-read.rwl(veblen.series$DRI)
+
+## Updated
+rwlj1 <-read.rwl(veblen.series$DRIre)
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+rwlj1 <- rwlj1[,-x]
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+```
+
+```{r DRfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Deer Ridge. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r DRtab, tab.id="DRtab", tab.cap="Series statistics and cross-dating notes for the Deer Mountain site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% colnames(rwlj1), "Yes", "No")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r DRwrite, results=F, echo=F}
+### Compile Metadata ###
+keymet.combo <- keymet %>% filter(SeriesCode=="DRI") 
+keymet.combo$SeriesCode <- "DRIcombo"
+
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+
+### Write to file ###
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "DRIcombo.rwl"), format="tucson")
+
+```
+
+\pagebreak
+## Eldorado Canyon
+```{r ELDOdat, results=F, echo=F}
+## Original - Graybill (CO534)
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", paste0("CO534", ".rwl")))
+
+# Veblen recollection
+rwlj1 <- read.rwl(veblen.series$ELDOre)
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+rwlj1 <- rwlj1[,-x]
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+
+```
+
+```{r, ELDOfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Eldorado Canyon site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+x <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r ELDOtab, tab.id="ELDOtab", tab.cap="Series statistics and cross-dating notes for the Eldorado Canyon site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% colnames(rwlj1), "Yes", "No")
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r ELDOMeta, results=F, echo=F}
+keymet.combo <- keymet %>% filter(SeriesCode=="CO534") 
+keymet.combo$SeriesCode <- "ELDOcombo"
+keymet.combo$Contributors <- "Graybill, D.A.; Veblen, T.T."
+
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "ELDOcombo.rwl"), format="tucson")
+```
+
+\pagebreak
+## Jefferson County Colorado
+```{r JCdat, results=F, echo=F}
+## Original - Graybill CO539
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO539.rwl"))
+
+## Updated - Woodhouse CO608
+rwlj1 <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO608.rwl"))
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+if(length(x)>0){
+  rwlj1 <- rwlj1[,-x]
+}
+
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+
+## Updated - Veblen JEFFre
+rwlj2 <-read.rwl(veblen.series$JEFFre)
+x <- which(colnames(rwlj2) %in% colnames(rwlcombo))
+if(length(x)>0){
+  rwlj2 <- rwlj2[,-x]
+}
+
+rwlcombo <- combine.rwl(rwlcombo, rwlj2)
+```
+
+```{r JCfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Jefferson County Open Space site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+x <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r JCtab, tab.id="JCtab", tab.cap="Series statistics and cross-dating notes for the Jefferson County Open Space site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% c(colnames(rwlj1),colnames(rwlj2)), "Yes", "No")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r JCwrite, results=F, echo=F}
+```
+
+```{r JEFFMeta, results=F, echo=F}
+rwlcombo <- rwlcombo[,!(colnames(rwlj) ==("J2_8"))] # remove series with poorly correlated data
+
+keymet.combo <- keymet %>% filter(SeriesCode=="CO539") 
+keymet.combo$SeriesCode <- "JEFFcombo"
+keymet.combo$Contributors <- "Graybill, D.A.; Woodhouse, C.A.; Lukas, J.J.; Nepstad-Thornberry, C.; Veblen, T.T."
+
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "JEFFcombo.rwl"), format="tucson")
+```
+
+\pagebreak
+## Kassler
+```{r Kasslerdat, results=F, echo=F}
+# Original - Fritts CO030
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO030.rwl"))
+
+## Updated - Graybill CO541
+filej <- list.files(, full.names=T, ignore.case=T)
+rwlj1 <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa","CO541.rwl"))
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+if(length(x)>0){
+  rwlj1 <- rwlj1[,-x]
+}
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+```
+
+```{r KasslerFig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Kassler site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+x <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r KasslerTab, tab.id="Kasslertab", tab.cap="Series statistics and cross-dating notes for the Kassler site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% c(colnames(rwlj1),colnames(rwlj2)), "Yes", "No")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r KaslerMeta, results=F, echo=F}
+keymet.combo <- keymet %>% filter(SeriesCode=="CO030") 
+keymet.combo$SeriesCode <- "KasslerCombo"
+keymet.combo$Contributors <- "Fritts, H.C.; Holmes, R.L.; Graybill, D.A."
+
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "KaslerCombo.rwl"), format="tucson")
+```
+
+\pagebreak
+## South Fork
+```{r SFdat, results=F, echo=F}
+## Original --> CO625 
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO625.rwl"))
+
+## Udpdated --> CO653
+rwlj1 <- read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO653.rwl"))
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+if(length(x)>0){
+  rwlj1 <- rwlj1[,-x]
+}
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+```
+
+```{r SFFig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the South Fork site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+x <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r SFTab, tab.id="SFtab", tab.cap="Series statistics and cross-dating notes for the South Fork site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% c(colnames(rwlj1),colnames(rwlj2)), "Yes", "No")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+
+```{r SouthForkMeta, results=F, echo=F}
+keymet.combo <- keymet %>% filter(SeriesCode=="CO625") 
+keymet.combo$SeriesCode <- "SFcombo"
+
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "SFcombo.rwl"), format="tucson")
+```
+\pagebreak
+## Turkey Creek Bluff
+```{r TCdat, results=F, echo=F}
+## CO548
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO548.rwl"))
+
+## CO675
+rwlj1 <- read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO675.rwl"))
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+if(length(x)>0){
+  rwlj1 <- rwlj1[,-x]
+}
+
+### Combine
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+```
+
+```{r TCFig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Turkey Creek Bluff site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+x <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r TCTab, tab.id="TCtab", tab.cap="Series statistics and cross-dating notes for the Turkey Creek Bluff site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% c(colnames(rwlj1),colnames(rwlj2)), "Yes", "No")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r TCMeta, results=F, echo=F}
+keymet.combo <- keymet %>% filter(SeriesCode=="CO548") 
+keymet.combo$SeriesCode <- "TCcombo"
+keymet.combo$Contributors <- "Graybill, D.A.; Woodhouse, C.A.; Losleben, M.V.; Chowanski, K.; Lukas, J.J"
+
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "TCcombo.rwl"), format="tucson")
+```
+\pagebreak
+## Van Bibber Creek
+```{r VANBdat, results=F, echo=F}
+## Original - CO550
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO550.rwl"))
+
+## Updated - CO641
+rwlj1 <- read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO641.rwl"))
+x <- which(colnames(rwlj1) %in% colnames(rwlj))
+if(length(x)>0){
+  rwlj1 <- rwlj1[,-x]
+}
+rwlcombo <- combine.rwl(rwlj, rwlj1)
+
+## Veblen Updated
+rwlj2 <- read.rwl(veblen.series$VANBre)
+x <- which(colnames(rwlj2) %in% colnames(rwlcombo))
+if(length(x)>0){
+  rwlj2 <- rwlj2[,-x]
+}
+
+rwlcombo <- combine.rwl(rwlcombo, rwlj2)
+```
+
+```{r VANBFig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Van Bibber Creek site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+x <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
+```
+
+```{r VANBTab, tab.id="TCtab", tab.cap="Series statistics and cross-dating notes for the Van Bibber Creek site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlcombo)
+summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation")
+summary.tab$Update <- ifelse(summary.tab$Series %in% c(colnames(rwlj1),colnames(rwlj2)), "Yes", "No")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r VANBMeta, results=F, echo=F}
+keymet.combo <- keymet %>% filter(SeriesCode=="CO550") 
+keymet.combo$SeriesCode <- "VANBcombo"
+keymet.combo$Contributors <- "Graybill, D.A.; 	
+Woodhouse, C.A.; Lukas, J.J.; Veblen. T.T."
+
+rwl.report.combo <- rwl.report(rwlcombo)
+keymet.combo$nseries <- rwl.report.combo$nSeries
+keymet.combo$FirstYear <- rwl.report.combo$firstYear
+keymet.combo$LastYear <- rwl.report.combo$lastYear
+keymet.combo$interrbar <- rwl.report.combo$meanInterSeriesCor
+keymet.combo$interrbar.sd <- rwl.report.combo$sdInterSeriesCor
+keymet.combo$ar1bar <- rwl.report.combo$meanAR1
+keymet.combo$ar1bar.sd <- rwl.report.combo$sdAR1
+
+keymet <- rbind(keymet, keymet.combo)
+
+### Write to file
+write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "VANBcombo.rwl"), format="tucson")
+```
+
+```{r writeMetadata, results=F, echo=F}
+write.csv(keymet, here("Data", "TreeRing", "Processed", "Nonhost", "Nonhost-Metadata.csv"), row.names=F)
+```

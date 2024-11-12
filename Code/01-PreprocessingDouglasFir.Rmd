@@ -1,0 +1,543 @@
+---
+title: "Preprocessing of Douglas-fir chronologies"
+author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
+email: "sarah.hart@colostate.edu"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output: 
+   officedown::rdocx_document:
+     reference_docx: Template.docx
+bibliography: references.bib
+csl: "`r here::here('citationstyle.csl')`"
+link-citations: true
+urlcolor: blue
+linkcolor: blue
+citationcolor: blue
+---
+
+```{r setup,include=FALSE, results='hide'}
+knitr::opts_chunk$set(
+  echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	progress = FALSE,
+	cache = FALSE,
+	dpi = 300,
+  fig.align = 'center'
+)
+
+set.seed(513)
+options(repos = c(CRAN = "http://cran.rstudio.com"))
+options(timeout=60*30) # timeout downloads that last longer than 30 minutes
+
+### Import libraries
+if (!require("remotes"))  install.packages("remotes")
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  here, # easy file structure
+  rmarkdown, # markdown
+  flextable, # table creation
+  officer, # word document creation
+  officedown, # word document creation
+  tidyverse, # data manipulation
+  dplR, # basic dendrochronology
+  dfoliatR, # dendroecology 
+  zoo # time series
+) 
+
+proj.proj <- 4629
+
+source(here("Code", "TreeRingfuncs.R"))
+
+### Set table defaults 
+set_flextable_defaults(
+  font.family="Times", 
+  font.size=12,
+  line_spacing=1,
+  padding.bottom=1,
+  padding.top=1,
+  text.align='center')
+
+# Set directory structure for project
+dir.create(here("Data"), showWarnings = FALSE)
+dir.create(here("Results"), showWarnings = FALSE)
+dir.create(here("Results", "Figures"), showWarnings = FALSE)
+dir.create(here("Data", "TreeRing", "Processed"), showWarnings = FALSE)
+dir.create(here("Data", "TreeRing", "Processed", "Host"), showWarnings = FALSE)
+```
+
+# Overview
+
+Here we re-evaluated the crossdating of the host chronologies to ensure that the series were correctly dated. We used the dplR package [@bunn2008; @bunn2024DplRDendrochronologyProgram] to calculate the correlation between each series and a main chronology built from all other series at each site. We calculated the correlation in 50-year segments that overlapped by 25 years and then removed series that were poorly correlated with the main chronology.
+
+### Boulder County 18
+
+We retained most series from the Boulder County 18 site, but removed two series because they were poorly correlated with the other series (Fig. \@ref(fig:B18fig); Table \@ref(tab:B18tab)).
+
+```{r B18dat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "B18.rwl"))
+```
+
+```{r B18fig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Boulder County 18 site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r B18tab, tab.id="B18tab", tab.cap="Series statistics and cross-dating notes for the Boulder County 18 site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+summary.tab[summary.tab$Series %in% c("300", "276"), "Notes"] <- "Removed - poorly correlated with the other series"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r B18write, results=F}
+rwlj <- rwlj[,!(colnames(rwlj) %in% c("300", "276"))]
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "B18.rwl"), format="tucson")
+```
+
+### Boulder County 19
+
+We retained most series from the Boulder County 19 site, but removed three series because they were poorly correlated with the other series (Fig. \@ref(fig:B19fig); Table \@ref(tab:B19tab)).
+
+```{r B19dat, results=F, echo=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "B19.rwl"))
+```
+
+```{r B19fig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Boulder County 19 site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r B19tab, tab.id="B19tab", tab.cap="Series statistics and cross-dating notes for the Boulder County 19 site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+summary.tab[summary.tab$Series %in% c("458", "497", "443"), "Notes"] <- "Removed - poorly correlated with the other series"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1) %>% paginate()
+```
+
+```{r B19write, results=F}
+rwlj <- rwlj[,!(colnames(rwlj) %in% c("458", "497", "443"))]
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "B19.rwl"), format="tucson")
+```
+
+### Lost Junction
+
+We retained all series from the Lost Junction site (Fig. \@ref(fig:LJfig); Table \@ref(tab:LJtab)).
+
+```{r LJdat, results=F, echo=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "LJ.rwl"))
+```
+
+```{r LJfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Lost Junction site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r LJtab, tab.id="LJtab", tab.cap="Series statistics and cross-dating notes for the Lost Junction site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r LJwrite, results=F}
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "LJ.rwl"), format="tucson")
+```
+
+### Sugarloaf Saddle
+
+We retained all series from the Sugarloaf Saddle site (Fig. \@ref(fig:SSfig); Table \@ref(tab:SStab)).
+
+```{r SSdat, results=F, echo=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "SS.rwl"))
+```
+
+```{r SSfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Sugarloaf Saddle site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r SStab, tab.id="SStab", tab.cap="Series statistics and cross-dating notes for the Sugarloaf Saddle site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r SSwrite, results=F}
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "SS.rwl"), format="tucson")
+```
+
+### Estes Park
+
+We retained all series from the Estes Park site, but trimmed one series because it was poorly correlated at the beginning of the record (Fig. \@ref(fig:EPfig); Table \@ref(tab:EPtab)).
+
+```{r EPdat, results=F, echo=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "EP.rwl"))
+```
+
+```{r EPfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series the Estes Park site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwlcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r EPtab, tab.id="EPtab", tab.cap="Series statistics and cross-dating notes for the Estes Park site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[summary.tab$Series=="632", "Notes"] <- "Years prior to 1750 were removed due to poor correlation"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r EPwrite, results=F}
+rwlj <- clipfun(rwlz=rwlj, series.name="632", clip.year=1750)
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "EP.rwl"), format="tucson")
+```
+
+### Frankenberger Point
+
+We retained all series from the Frankenberger Point site, but trimmed two series because they were poorly correlated at the beginning of the record (Fig. \@ref(fig:FPfig); Table \@ref(tab:FPtab)).
+
+```{r FPdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen",  "FP.rwl"))
+```
+
+```{r FPfig, fig.width=4.5, fig.height=4.5, fig.cap="The Spearman's correlations between each tree-ring series and a main chronology built from all other series from the Frankenberger Point site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r FPtab, tab.id="FPtab", tab.cap="Series statistics and cross-dating notes for the Frankenberger Point site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[summary.tab$Series %in% c("CO95788", "CO95793"), "Notes"] <- "Removed years prior to 1700 due to poor correlation"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r FPwrite, results=F}
+rwlj <- clipfun(rwlz=rwlj, series.name="CO95788", clip.year=1700)
+rwlj <- clipfun(rwlz=rwlj, series.name="CO95793", clip.year=1700)
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "FP.rwl"), format="tucson")
+```
+
+### South Hollowell
+
+We retained all series from the South Hollowell site (Fig. \@ref(fig:SHfig); Table \@ref(tab:SHtab)).
+
+```{r SHdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "SH.rwl"))
+```
+
+```{r SHfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the South Hollowell site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r SHtab, tab.id="SHtab", tab.cap="Series statistics and cross-dating notes for the South Hollowell site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r SHwrite, results=F}
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "SH.rwl"), format="tucson")
+```
+
+### West Rd. 211
+
+We retained all series from the West Rd. 211 site (Fig. \@ref(fig:WRfig); Table \@ref(tab:WRtab)).
+
+```{r WRdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen",  "WR.rwl"))
+```
+
+```{r WRfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the West Rd. 211 site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r WRtab, tab.id="WRtab", tab.cap="Series statistics and cross-dating notes for the West Rd. 211 site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r WRwrite, results=F}
+### Write to file
+write.rwl(rwlj,fname=here("Data", "TreeRing", "Processed", "Host", "WR.rwl"), format="tucson")
+```
+
+### Lost Jeep
+
+We retained all series from the Lost Jeep site (Fig. \@ref(fig:JPfig); Table \@ref(tab:JPtab)).
+
+```{r JPdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "JP.rwl"))
+```
+
+```{r JPfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Lost Jeep site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r JPtab, tab.id="JPtab", tab.cap="Series statistics and cross-dating notes for the Lost Jeep site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[summary.tab$Series %in% c("390"), "Notes"] <- "Removed - poorly correlated with the other series"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r JPwrite, results=F}
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "JP.rwl"), format="tucson")
+```
+
+### Wigwam 1
+
+We retained all series from the Wigwam 1 site (Fig. \@ref(fig:WWfig); Table \@ref(tab:WWtab)).
+
+```{r WWdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "WW.rwl"))
+```
+
+```{r WWfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Wigwam 1 site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r WWtab, tab.id="WWtab", tab.cap="Series statistics and cross-dating notes for the Wigwam 1 site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r WWwrite, results=F}
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "WW.rwl"), format="tucson")
+```
+
+### South Rd. 30
+
+We retained all series from the South Rd. 30 site (Fig. \@ref(fig:SRfig); Table \@ref(tab:SRtab)).
+
+```{r SRdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "SR.rwl"))
+```
+
+```{r SRfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the the South Rd. 30 site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r SRtab, tab.id="SRtab", tab.cap="Series statistics and cross-dating notes for the South Rd. 30 site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[summary.tab$Series %in% c("300", "276"), "Notes"] <- "Removed - poorly correlated with the other series"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r SRwrite, results=F}
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "SR.rwl"), format="tucson")
+```
+
+### Summerland Park
+
+We retained most series from the Summerland Park site, but removed two series because they were poorly correlated with the other series (Fig. \@ref(fig:SPfig); Table \@ref(tab:SPtab)).
+
+```{r SPdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "SP.rwl"))
+```
+
+```{r SPfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Summerland Park site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r SPtab, tab.id="SPtab", tab.cap="Series statistics and cross-dating notes for the Summerland Park site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+summary.tab[summary.tab$Series %in% c("NI1565", "NI1537"), "Notes"] <- "Removed - poorly correlated with the other series"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r SPwrite, results=F}
+rwlj <- rwlj[,!(colnames(rwlj) %in% c("NI1565", "NI1537"))]
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "SP.rwl"), format="tucson")
+```
+
+### North Inlet
+
+We retained most series from the North Inlet site, but removed ones series because it was poorly correlated with the other series (Fig. \@ref(fig:NIfig); Table \@ref(tab:NItab)).
+
+```{r NIdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen",  "NI.rwl"))
+```
+
+```{r NIfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the North Inlet site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r NItab, tab.id="NItab", tab.cap="Series statistics and cross-dating notes for the North Inlet site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[summary.tab$Series %in% c("1120"), "Notes"] <- "Removed - poorly correlated with the other series"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r NIwrite, results=F}
+rwlj <- rwlj[,!(colnames(rwlj) %in% c("1120"))]
+### Write to file
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "NI.rwl"), format="tucson")
+```
+
+### Three Island Lake Trail
+
+We retained all series from the Three Island Lake Trail (Fig. \@ref(fig:TIfig); Table \@ref(tab:TItab)).
+
+```{r TIdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "TI.rwl"))
+```
+
+```{r TIfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series from the Three Island Lake Trail site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r TItab, tab.id="TItab", tab.cap="Series statistics and cross-dating notes for the Three Island Lake Trail site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r TIwrite, results=F}
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "TI.rwl"), format="tucson")
+```
+
+### Wild Basin
+
+We retained all series from the Wild Basin site, but trimmed one series to the period following 1800 because of poor correlation in the early part of the record (Fig. \@ref(fig:WBfig); Table \@ref(tab:WBtab)).
+
+```{r WBdat, results=F}
+rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Host", "Veblen", "WB.rwl"))
+```
+
+```{r WBfig, fig.width=4.5, fig.height=4.5, fig.cap="The correlations between each tree-ring series and a main chronology built from all other series for the Wild Basin site. Correlations were calculated in 50-year segments that overlap by 25 years. Blue segments show period that correlate well with the main chronology (p<0.1). Red segments show poor correlation with the main chronology (p>0.1). Green segments show periods do not overlap with the main chronology."}
+rwljcor <- corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1)
+```
+
+```{r WBtab, tab.id="WBtab", tab.cap="Series statistics and cross-dating notes for the Wild Basin site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
+summary.tab <- summary.rwl(rwlj)
+summary.tab$rho <- round(corr.rwl.seg(rwlj, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
+summary.tab$notes <- "Retained"
+
+summary.tab <- summary.tab %>% select(series, first, last, rho, notes) %>% mutate(first=as.character(first), last=as.character(last))
+colnames(summary.tab) <- c("Series", "First\nyear", "Last\nyear", "Spearman's correlation", "Notes")
+
+summary.tab[summary.tab$Series %in% c("WB1367"), "Notes"] <- "Trimmed series to remove all years prior to 1800 due to poor correlation"
+
+summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1) %>% paginate
+```
+
+```{r WBwrite, results=F}
+rwlj <- clipfun(rwlz=rwlj, series.name="WB1367", clip.year=1800)
+
+write.rwl(rwlj, fname=here("Data", "TreeRing", "Processed", "Host", "WB.rwl"), format="tucson")
+```
+
+```{r, results=F}
+keymet.host <- read.csv(here("Data", "TreeRing", "Raw", "Host", "Veblen", "SiteInfo-WSB.csv"))
+keymet.host$nseries=NA
+keymet.host$FirstYear=NA
+keymet.host$LastYear=NA
+keymet.host$interrbar=NA
+keymet.host$interrbar.sd=NA
+keymet.host$ar1bar=NA
+keymet.host$ar1bar.sd=NA
+
+
+### Calculate basic chronology statistics
+for(j in 1:nrow(keymet.host)){
+  series <- as.character(keymet.host[j, "SeriesCode"])
+  site <- keymet.host[j, "SiteName"]
+  series.site <- gsub( " ", "-",paste(series, site))
+  rwlj <- read.rwl(here("Data", "TreeRing", "Processed", "Host", paste0(series, ".rwl")))
+  rwl.reportj <- rwl.report(rwlj)
+  keymet.host[keymet.host$`SeriesCode`==series, "nseries"] <- rwl.reportj$nSeries # calculate the number of series
+  keymet.host[keymet.host$`SeriesCode`==series, "FirstYear"] <- rwl.reportj$firstYear# calculate the number of series
+  keymet.host[keymet.host$`SeriesCode`==series, "LastYear"] <- rwl.reportj$lastYear# calculate the number of series
+  keymet.host[keymet.host$`SeriesCode`==series, "interrbar"] <- rwl.reportj$meanInterSeriesCor # calculate mean interseries correlation
+  keymet.host[keymet.host$`SeriesCode`==series, "interrbar.sd"] <- rwl.reportj$sdInterSeriesCor# calculate sd interseries correlation
+  keymet.host[keymet.host$`SeriesCode`==series, "ar1bar"] <- rwl.reportj$meanAR1 # calculate mean first order autocorrelation
+  keymet.host[keymet.host$`SeriesCode`==series, "ar1bar.sd"] <- rwl.reportj$sdAR1 # calculate sd first order autocorrelation
+}
+
+write.csv(keymet.host, here("Data", "TreeRing", "Processed", "Host", "Host-Metadata.csv"), row.names=F)
+
+```
+
+# References
+
+::: {#refs}
+:::

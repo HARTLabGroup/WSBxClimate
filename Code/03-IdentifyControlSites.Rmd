@@ -1,0 +1,209 @@
+---
+title: "Identify host sites for nonhost sites based on climate and tree-ring data"
+author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
+email: "sarah.hart@colostate.edu"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output: 
+   officedown::rdocx_document:
+     reference_docx: Template.docx
+bibliography: references.bib
+csl: "`r here::here('citationstyle.csl')`"
+link-citations: true
+urlcolor: blue
+linkcolor: blue
+citationcolor: blue
+---
+
+```{r setup,include=FALSE, results='hide'}
+knitr::opts_chunk$set(
+  echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	progress = FALSE,
+	cache = FALSE,
+	dpi = 300,
+  fig.align = 'center'
+)
+
+# Set seed
+set.seed(2020)
+
+### Import libraries
+if (!require("pacman")){install.packages("pacman")}
+pacman::p_load(
+  here, # easy file structure
+  tidyverse, # data manipulation
+  ggplot2, # figures
+  patchwork, # combining figures
+  dplR, # basic dendrochronology
+  zoo, # time series
+  knitr, # markdown documents
+  kableExtra, # tables in markdown
+  flextable, # other table options
+  officer,
+  bookdown,
+  sf, # spatial data (new pkg)
+  ncdf4, #import ncdf files
+  terra  # newer package for working with raster data
+) 
+proj.proj <- 4629
+
+# Set directory structure for project
+dir.create(here("Data", "Spatial"), showWarnings = FALSE)
+dir.create(here("Results"), showWarnings = FALSE)
+```
+
+Briefly, here we matched nonhost sites with host sites based the highest Pearson's correlation, subject to the following constraints:
+
+1.  the nonhost chronology overlapped the entire host chronology
+
+2.  the nonhost chronology was less than 150 km away from the host site.
+
+Finally, we removed any sites where the host chronology was poorly correlated (r\<0.2) with either the SC-PDSI or the available nonhost chronologies. Results of this matching are presented in Table \@ref(tab:hostxnonhost)).
+
+```{r TreeRingData, results='hide'}
+host.meta <- read.csv(here("Data", "TreeRing", "Processed", "Host", "host-metadata.csv"))
+nonhost.meta <- read.csv(here("Data", "TreeRing", "Processed", "Nonhost", "nonhost-metadata.csv")) %>% filter(is.na(Lat)==F)
+
+nonhost.sites <- st_as_sf(x = nonhost.meta,  coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
+
+host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
+```
+
+```{r NADA, results='hide'}
+if(!file.exists(here("Data", "nada-hosts.csv"))){
+  nc_data <- nc_open(here("Data", "Spatial", "NADA", "nada_hd2_cl.nc"))
+  lon <- ncvar_get(nc_data, "lon")
+  lat <- ncvar_get(nc_data, "lat")
+  t <- ncvar_get(nc_data, "time")
+  fillvalue <- ncatt_get(nc_data, "pdsi", "_FillValue")
+  
+  nada.array <- ncvar_get(nc_data, "pdsi")
+  nc_close(nc_data)
+  nada.array[nada.array== fillvalue ] <- NA
+  
+  nada <-raster(nada.array[1651,,], xmn=min(lon), xmx=max(lon), ymn=min(lat), ymx=max(lat), crs=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0"))
+  nada <- flip(nada, direction="y")
+  years <- 1652:length(t)
+  for(j in years){
+    r <- raster(nada.array[j,,], xmn=min(lon), xmx=max(lon), ymn=min(lat), ymx=max(lat), crs=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0"))
+    r <- flip(r, direction="y")
+    nada <- stack(nada, r)
+    r <- NULL
+  }
+  
+  nada.hosts <- t(terra::extract(nada, host.sites)) %>% as.data.frame()
+  colnames(nada.hosts) <- host.sites$SeriesCode
+  row.names(nada.hosts) <- 1650:(max(years)-1)
+  nada.hosts %>% write.csv(here("Data", "nada-hosts.csv"),row.names=T)
+}
+```
+
+```{r HostXNonhost, results='hide'}
+# Read in NADA time series
+nada.hosts <- read.csv(here("Data", "nada-hosts.csv"))
+  
+### READ IN RINGWIDTH DATA
+# Host data
+host.rwls <- list.files(here("Data", "TreeRing", "Processed", "Host"), pattern=".rwl", full.names=T)
+names(host.rwls) <- gsub(".rwl", "", unlist(list.files(here("Data", "TreeRing", "Processed", "Host"), pattern=".rwl", full.names=F)))
+host.rwls <- lapply(host.rwls, read.rwl)
+
+# Nonhost data
+nonhost.rwls <- list.files(here("Data", "TreeRing", "Processed", "NonHost"), full.names = T, pattern=".rwl")
+names(nonhost.rwls) <- gsub(".rwl", "", unlist(list.files(here("Data", "TreeRing", "Processed", "NonHost"), pattern=".rwl", full.names=F)))
+nonhost.rwls <- lapply(nonhost.rwls, read.rwl)
+namez <- names(nonhost.rwls)
+bad.namez <- which(namez %in% c("CO532", "CO598", "DRI", "DRIre", "CO534", "ELDOre", "CO539", "CO608", "JEFFre", "CO030", "CO541", "CO625", "CO653", "CO548", "CO675", "CO550", "CO641", "VANBre"))
+nonhost.rwls <- nonhost.rwls[-bad.namez]
+
+### DETREND ###
+# Host data
+host.rwis <- lapply(host.rwls, detrend, method = "ModNegExp")
+host.rwis <- lapply(host.rwis, detrend, method = "Spline", nyrs = 30)
+
+# Nonhost data
+nonhost.rwis <- lapply(nonhost.rwls, detrend, method = "ModNegExp")
+nonhost.rwis <- lapply(nonhost.rwis, detrend, method = "Spline", nyrs = 30)
+
+### BUILD CHRONOLOGIES
+# Host data
+host.crns <- lapply(host.rwis, chron, prewhiten = TRUE, prefix="")
+host.crns <- lapply(host.crns, "[",c(-1, -3))
+host.crns.ts <- lapply(host.crns, FUN=function(x){return( ts(x, start=min(as.numeric(row.names(x)))) )})
+host.crns.mts<- do.call(cbind, host.crns.ts)
+
+# Nonhost data
+nonhost.crns <- lapply(nonhost.rwis, chron, prewhiten = TRUE, prefix="")
+nonhost.crns <- lapply(nonhost.crns, "[",c(-1, -3))
+nonhost.crns.ts <- lapply(nonhost.crns, FUN=function(x){return( ts(x, start=min(as.numeric(row.names(x)))))})
+nonhost.crns.mts<- do.call(cbind, nonhost.crns.ts)
+
+## CALCULATE DISTANCES
+host.pts <-  st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>%  st_transform("epsg:26913")
+
+nonhost.pts <-  st_as_sf(x = nonhost.meta[!is.na(nonhost.meta$Lat)==T,], coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform("epsg:26913") %>%  filter(SeriesCode %in% names(nonhost.crns))
+
+dists <- st_distance(host.pts, nonhost.pts, by_element=F) 
+row.names(dists)<- host.pts$SeriesCode
+colnames(dists)<- nonhost.pts$SeriesCode
+
+### CALCUALTE CORRELATIONS
+cor.mat <- cor(cbind(host.crns.mts, nonhost.crns.mts), use="pairwise.complete.obs")
+row.names(cor.mat) <- c(colnames(host.crns.mts), colnames(nonhost.crns.mts))
+colnames(cor.mat) <- c(colnames(host.crns.mts), colnames(nonhost.crns.mts))
+
+# Summarize
+res <- data.frame(host=host.meta$SeriesCode, nonhost1=NA, nonhost2=NA, nonhost3=NA,  nonhost1.r=NA, nonhost2.r=NA, nonhost3.r=NA, nonhost1.d=NA, nonhost2.d=NA, nonhost3.d=NA, r.hostxNADA=NA) # create data frame to hold results
+for(j in res$host){
+  
+  # (1) limit to chronologies that overlap the entire host record
+  lastyrj <- host.meta %>% dplyr::filter(SeriesCode == j) %>% pull(LastYear )
+  nonhost.long <- nonhost.meta %>% filter(LastYear>=lastyrj) %>% pull(SeriesCode)
+  nonhost.long <- which(nonhost.long %in% colnames(dists))
+  
+  # (2) limit to sites within 150 km 
+  dists.j <- dists[j, nonhost.long]
+  dists.j <- unclass(dists.j)
+  dists.j <- dists.j[dists.j <= 150000] 
+  
+  # (3) determine top 3 correlations
+  cor.matj <- cor.mat[j, names(dists.j)]
+  top3 <- sort(cor.mat[j, names(dists.j)],decreasing=T)[1:3]
+  res[res$host==j, c("nonhost1", "nonhost2", "nonhost3")] <- names(top3)
+  res[res$host==j, c("nonhost1.r", "nonhost2.r", "nonhost3.r")] <- cor.matj[names(top3)]
+  res[res$host==j, c("nonhost1.d", "nonhost2.d", "nonhost3.d")] <-  dists.j[names(top3)]
+  
+  # (4) correlation between host and NADA
+  nada.ts <- ts(nada.hosts[,j], start=1650)
+  res[res$host==j, ]$r.hostxNADA <- cor(cbind(host.crns.mts[,colnames(host.crns.mts)==j], nada.ts), use="pairwise.complete.obs")[1,2]
+
+}
+res$mean.r <- res %>% dplyr::select(nonhost1.r:nonhost3.r) %>% rowMeans(na.rm=T)
+res$notes <- NA
+res2 <- res
+
+res2 <- res2 %>% filter(r.hostxNADA>=0.2) # Estes park, Frankenberger Point or South Hollowell do not correlate well with PDSI
+res <- res %>% mutate(notes=ifelse(r.hostxNADA<0.2, "Removed due to poor correlation with PDSI", NA))
+
+write.csv(res, here("Results", "hostXnonhost.csv"), row.names=F)
+write.csv(res2, here("Results", "hostXnonhost-subset.csv"), row.names=F)
+```
+
+```{r summary,  tab.cap="Summary of nonhost chronologies matched with each host site. For the top three nonhost sites, the Pearson's correlation coefficient (r) and distance (d) between the host and nonhost sits are displayed in parentheses below the name of each series.", tab.id='hostxnonhost'}
+
+res <- read.csv(here("Results", "hostXnonhost.csv"))
+res <- res %>%  mutate(nonhost1.r=round(nonhost1.r,digits=2), nonhost2.r=round(nonhost2.r,digits=2), nonhost3.r=round(nonhost3.r,digits=2), nonhost1.d=round(nonhost1.d/1000,digits=0), nonhost2.d=round(nonhost2.d/1000,digits=0), nonhost3.d=round(nonhost3.d/1000,digits=0), r.hostxNADA=round(r.hostxNADA,digits=2))
+
+res <- res %>% unite("Control1", nonhost1, nonhost1.r, remove = TRUE, sep=" (r=") %>% mutate(Control1=paste0(Control1, "; ")) %>% unite("Control1", Control1, nonhost1.d, remove = TRUE, sep="d=") %>% mutate(Control1=paste0(Control1, " km)")) 
+
+res <- res %>% unite("Control2", nonhost2, nonhost2.r, remove = TRUE, sep=" (r=") %>% mutate(Control2=paste0(Control2, "; ")) %>% unite("Control2", Control2, nonhost2.d, remove = TRUE, sep="d=") %>% mutate(Control2=paste0(Control2, " km)")) 
+
+res <- res %>% unite("Control3", nonhost3, nonhost3.r, remove = TRUE, sep=" (r=") %>% mutate(Control3=paste0(Control3, "; ")) %>% unite("Control3", Control3, nonhost3.d, remove = TRUE, sep="d=") %>% mutate(Control3=paste0(Control3, " km)")) 
+  
+res <- res %>% select(host, Control1, Control2, Control3, r.hostxNADA, notes)
+colnames(res) <- c("Host site", "Nonhost control site 1", "Nonhost control site 2", "Nonhost control site 3", "Correlation with PDSI", "Notes")
+
+res %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
+
+```

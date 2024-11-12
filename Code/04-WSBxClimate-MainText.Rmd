@@ -1,0 +1,1532 @@
+---
+title: "Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
+author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
+email: "sarah.hart@colostate.edu"
+date: '`r format(Sys.time(), "%B %d, %Y")`'
+output: 
+   officedown::rdocx_document:
+     reference_docx: Template.docx
+bibliography: references.bib
+csl: "`r here::here('citationstyle.csl')`"
+link-citations: true
+urlcolor: blue
+linkcolor: blue
+citationcolor: blue
+---
+
+```{r setup,include=FALSE, results='hide'}
+knitr::opts_chunk$set(
+  echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	progress = FALSE,
+	cache = FALSE,
+	dpi = 300,
+  fig.align = 'center'
+)
+
+
+
+set.seed(513)
+options(repos = c(CRAN = "http://cran.rstudio.com"))
+options(timeout=60*30) # timeout downloads that last longer than 30 minutes
+
+### Import libraries
+if (!require("remotes"))  install.packages("remotes")
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  here, # easy file structure
+  rmarkdown, # 
+  flextable, # tables
+  officer, # word documents
+  bookdown, # word documents
+  tidyverse, # data manipulation
+  tidymodels, # modeling 
+  ggplot2, # figures
+  RColorBrewer, # color palettes
+  patchwork, # combining figures
+  dplR, # basic dendrochronology
+  dfoliatR, # dendroecology 
+  zoo, # time series
+  #factoextra, # multivariate analyses
+  #forcats, # categorical data
+  sf, # spatial data
+  terra, # raster data (new pkg)
+  raster, # raster data (old pkg)
+  ncdf4, #import ncdf files
+  tmap, # easy plotting of maps
+  tmaptools, # helper library for tmap
+  grid, # useful for plotting inset map
+  terrainr, # dem
+  ncf, # spatial covariance
+  #RCurl, # downloading data via curl
+  MASS, # mixed effect modelling
+  nlme, # mixed effect modelling
+  synchrony, # non-parametric spatial covariance 
+  #remotes,
+  readxl # read excel files
+) 
+
+proj.proj <- 4629
+
+# Set custom plotting theme
+theme_new <- function(base_size = 9,base_family = "Helvetica"){
+  theme_classic(base_size = base_size, base_family = base_family) %+replace%
+    theme(
+      axis.line.x = element_line(color="black", linewidth = 0.25),
+      axis.line.y = element_line(color="black", linewidth = 0.25),
+      axis.title = element_text(size = 9),
+      axis.text = element_text(colour="black", size=8),
+      legend.key=element_rect(colour=NA, fill =NA),
+      panel.grid = element_blank(),   
+      plot.background = element_rect(fill = NA, colour = NA),
+      panel.border = element_rect(fill = NA, colour = NA),
+      panel.background = element_rect(fill = "white", colour = "black"), 
+      strip.background = element_rect(fill = "white"),
+      strip.text = element_text(size = 9)
+      
+    )
+}
+theme_set(theme_new())
+
+set_flextable_defaults(
+  font.family="Times", 
+  font.size=12,
+  line_spacing=1,
+  padding.bottom=1,
+  padding.top=1,
+  text.align='center')
+
+# Set directory structure for project
+dir.create(here("Data"), showWarnings = FALSE)
+dir.create(here("Data", "Spatial"), showWarnings = FALSE)
+dir.create(here("Results"), showWarnings = FALSE)
+dir.create(here("Results", "Figures"), showWarnings = FALSE)
+```
+
+\pagebreak
+
+# Abstract
+
+# Keywords
+
+# Introduction
+
+Changes in climate, human population density, and land-use are altering ecosystems around the world [@weiskopf2020ClimateChangeEffects]. In forested ecosystems of western North America, these changes are altering plant-insect interactions, leading to changes in in ecosystem structure, composition, and function [@bale2002]. Such changes may be particularly dramatic when insect herbivores increase consumption in response to elevated temperatures, CO~2~ concentrations, drought stress, and/or nutrient conditions [@hamann2021ClimateChangeAlters]. Predicting the effects of global change on the structure, composition, and function of forest ecosystems requires a better understanding of the effects of global change on interactions between plants and insects.
+
+The western spruce budworm (WSB; *Choristoneura occidentalis*) is one of the most widely distributed native defoliators of coniferous forests in North America, where it plays an important role in shaping ecosystem function [@johnson1975OutbreaksWesternSpruce; @brookesWesternSpruceBudworm1987]. The WSB is a specialist herbivore that preferentially feeds upon young buds and new foliage of their host trees, which include Douglas-fir (*Pseudotsuga menziesii*), true firs (*Abies* spp.) and spruce (*Picea spp.*). Typically, WSBs exist at low population levels and defoliation is minimal [@brookesWesternSpruceBudworm1987]. However, periodically WSB populations may erupt, leading to severe defoliation. These outbreaks occur when several thresholds in the host-WSB system are crossed and negative feedbacks among the WSB populations, host trees, and natural enemies no longer constrain WSB population dynamics [@meigs2015; @senfMultiscaleAnalysisWestern2017; @nealis2021EcologyOutbreakPopulations]. During outbreaks, affected trees may experience severe reductions in growth and seed production or even death [@alfaroTreeMortalityRadial1982], leading to reduced host species regeneration and altered successional trajectories [@wulf1987SiteStandCharacteristics; @hadleyStandResponseWestern1993], changes in carbon cycling [@dymond2010FutureSpruceBudworm], and reductions in timber volume [@alfaro1992]. Importantly, outbreaks often occur synchronously across broad spatial extents (i.e, 1000s of kilometers) [@flower2016], leading to considerable fluctuation in the provisioning of ecosystem services at a subcontinental scale [@wilcox2017AsynchronyLocalCommunities; @patrick2021MultiscaleBiodiversityDrives].
+
+Disjunct populations of forest insects may fluctuate synchronously due to density-dependent processes, including dispersal, parasitoidism, disease, and predation [@liebhold2012]. For example, analyses of the spatial patterning of recent (ca. 1996-2011) WSB outbreaks in interior southern British Columbia revealed that 90% of patches newly infested by WSB were within 5 km of an existing patch, consistent with the expectation that adult moth dispersal drives spatiotemporal patterns of outbreak [@senfMultiscaleAnalysisWestern2017]. While dispersal may explain spatiotemporal synchrony at fine scales, WSB populations may also fluctuate synchronously at subcontinental scales [@flower2016]. At least part of this pattern has been attributed to *"the Moran effect"*, where spatial autocorrelation in exogenous drivers leads to synchrony [@moran1953StatisticalAnalsisCanadian]. For the WSB, Moran effects may occur if climate affects WSB population rates by altering insect survival or fecundity [@brookesWesternSpruceBudworm1987; @swetnam1993] and/or if regionally-synchronized stand development affects forage quantity and quality [@brookesWesternSpruceBudworm1987; @hadleyStandResponseWestern1993; @swetnam1993].
+
+Outbreaks of WSB are most likely to occur in host-dominated multistoried stands that provide favorable microenvironments for egg development as well as feeding and downward dispersal of larvae [@wulf1987SiteStandCharacteristics]. These stands are particularly susceptible when the surrounding landscape is also characterized by abundant hosts [@brookesWesternSpruceBudworm1987; @senfMultiscaleAnalysisWestern2017]. At the stand and landscape scale, patterns of host abundance and size reflect past disturbances and land-use history [@hadleyStandResponseWestern1993; @maclauchlan2009InfluenceForestryPractices]. Notably, the forcible displacement of native peoples by Euro-American settlers and the ensuing changes in land management practices altered forest composition, structure, and disturbance regimes across much of the Western US [@hessburg2019ClimateEnvironmentDisturbance]. Early Euro-American settlers often heavily logged forests near settlements and ignited fires, often burning extensive areas [@veblen1991ColoradoFrontRange]. For example, in the Southern Rocky Mountains logging and burning left a legacy of widespread even-aged forests that established in the late 19th to early 20th century [@veblen1991ColoradoFrontRange; @smith2000ForestryPracticesForest].
+
+Both logging practices that emphasize the selective harvesting of large trees and severe wildfires can reduce host abundance and quality, thereby limiting the susceptibility of stands to outbreaks in the near-term [@hadleyStandResponseWestern1993; @swetnam1993]. While initially logged and burned stands may be less susceptible to WSB outbreaks, after several decades stands may again become susceptible to WSB outbreaks as trees regenerate and grow, eventually developing into multistoried structures [@hadleyStandResponseWestern1993; @swetnam1993]. Additionally in many forests formerly characterized by a low-severity, frequent fire regime, reduced fire frequency resulting from livestock grazing and modern fire exclusion practices in the early 1900s resulted in denser stands and in some cases increased abundance of the more shade-tolerant Douglas-fir [@kaufmann2000HeterogeneityPonderosaPine; @huckaby2001LandscapePatternsMontane; @sherriff2006EcologicalEffectsChanges; @schoennagel2011FireHistoryTree]. Collectively, similar changes in effects of Euro-American land-use practices have been hypothesized to make stands more susceptible to WSB outbreaks and lead to increases in the severity and synchrony of WSB outbreaks [@swetnam1989]. However, evidence for this effect appears to vary regionally [@alfaroPeriodicityWesternSpruce2014; @swetnam1993; @hadleyStandResponseWestern1993; @flower2014; @ryersonTreeringReconstructionWestern2003; @ellisMulticenturyDendrochronologicalReconstruction2017].
+
+Given susceptible stand conditions, interannual variability in drought severity may synchronize the dynamics of disjunct populations of folivorous insects [@gely2020HowHerbivorousInsects]. This may occur if droughts decrease forage digestibility and availability, thereby decreasing insect population growth rates (*plant vigor hypothesis*) [@price1991PlantVigorHypothesis]. Alternatively, droughts may promote population growth rates if they increase available foliar nitrogen content (*plant stress hypothesis*) [@whiteAbundanceInvertebrateHerbivores1984]. For the WSB-Douglas fir system, outbreak occurrence has been linked with both periods of drought and above average moisture availability [@swetnam1993; @flower2014]. This apparent contradiction may arise for several reasons. First, tree resource partitioning may respond non-linearly to drought. For instance, carbon allocation to defenses is expected to be greatest at moderate drought severity when fewer carbohydrates are used for growth and thus more resources are available for the production of defense compounds (*growth-differentiation balance hypothesis) [@herms1992DilemmaPlantsGrow\*]. Further, multi-year drought events may have particularly important effects on trees [@gao2018DynamicResponsesTreering; @kannenberg2019DroughtLegaciesAre; @lv2022ProlongedDroughtDuration], yet most analyses of the effects of drought on WSB outbreak histories has focused on seasonal to annual drought measures. Finally, drought events that are followed by increased moisture availability may be most favorable to outbreak if drought increases forage quality thereby triggering outbreak initiation, but above average moisture availability sustains forage production necessary for sustaining high population levels (*pulsed stress hypothesis\*) [@huberty2004PlantWaterStress; @flower2014].
+
+This study relies upon a multiproxy approach to reconstruct periods of past WSB outbreak across central to northern Colorado. We combine tree-ring records and observational evidence to produce a multi-centennial record, necessary for understanding the dynamics of WSB outbreaks [@swetnam1989]. We use this record data to quantify: (1) temporal synchrony in outbreak history, (2) differences in the dynamics of WSB outbreaks before and after Euro-American settlement, and (3) the association between climate and outbreak initiation and cessation.
+
+# Materials and Methods
+
+## Study area
+
+The study area consists of forested areas in central to northern Colorado (ca. 38.3° N to 40.8° latitude) where Douglas fir is commonly found (Fig. \@ref(fig:FigStudyArea)). This zone extends from about 2150 to 2900 meters in elevation and typically experiences warm summers (1991-2020 mean July daily maximum temperature: 25.3°C), cold winters (1991-2020 mean January daily minimum temperature: -10.0°C), and moderate amounts of precipitation (1991-2020 mean total annual precipitation: 523 mm) [@prismclimategroup2021]. At local scales, the climate is driven by elevation gradients, the prevailing westerly winds, and the north-south orientation of the mountains. Temperatures are warmer at lower elevations, while more precipitation falls at higher elevations, particularly on the windward side of the Rockies [@lukas2014ClimateChangeColorado]. Summer precipitation patterns exhibit a distinct latitudinal gradient, where more southern locations often receive more precipitation due to the North American Monsoon system [@lukas2014ClimateChangeColorado].
+
+Montane forests across the region are dominated by ponderosa pine (*Pinus ponderosa*) and Douglas fir (*Pseudotsuga menziesii)*, with lesser components of aspen (*Populus tremuloides*), lodgepole pine (*Pinus contorta*), and limber pine (*Pinus flexilis*) [@veblen2005]. Prior to Euro-American colonization, lower montane forests across the study area were characterized by frequent, low-severity fire, while higher elevation montane forests were characterized by a more variable fire regime [@sherriff2007SpatiallyExplicitReconstructionHistorical].
+
+```{r DL_SpatialData}
+# states
+dir.create(here("Data", "Spatial", "States"), showWarnings = FALSE)
+temp <- here("Data", "Spatial", "States", "cb_2018_us_state_20m.zip")
+if(!file.exists(temp)){
+  download.file("https://www2.census.gov/geo/tiger/GENZ2018/shp/cb_2018_us_state_20m.zip", temp, mode="wb")
+  unzip(temp, exdir=here("Data", "Spatial", "States"))
+}
+
+# Colorado cities
+dir.create(here("Data", "Spatial", "Cities"), showWarnings = FALSE)
+temp <- here("Data", "Spatial", "Cities", "Colorado_City_Point_Locations.zip")
+if(!file.exists(temp)){
+  download.file("https://opendata.arcgis.com/api/v3/datasets/b20b5c04576145be9428b4b4f28490c2_0/downloads/data?format=shp&spatialRefId=4269&where=1%3D1", temp, mode="wb")
+  unzip(temp, exdir=here("Data", "Spatial", "Cities"))
+}
+
+# MTBS 
+dir.create(here("Data", "Spatial", "MTBS"), showWarnings = FALSE)
+temp <- here("Data", "Spatial", "MTBS", "mtbs_perimeter_data.zip")
+if(!file.exists(temp)){
+  download.file("https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/MTBS_Fire/data/composite_data/burned_area_extent_shapefile/mtbs_perimeter_data.zip", temp, mode="wb")
+  unzip(temp, exdir=here("Data", "Spatial", "MTBS"))
+}
+
+#EcoRegions
+dir.create(here("Data","Spatial", "EcoRegions"), showWarnings = FALSE)
+temp <- here("Data", "Spatial", "EcoRegions","us_eco_l3.zip")
+if(!file.exists(temp)){
+  download.file("https://gaftp.epa.gov/EPADataCommons/ORD/Ecoregions/us/us_eco_l3.zip", temp, mode="wb")
+  unzip(temp, exdir=here("Data", "Spatial", "EcoRegions"))
+}
+
+```
+
+```{r DL_NADA}
+if(!file.exists(here("Data", "Spatial", "NADA"))){
+  dir.create(here("Data", "Spatial", "NADA"), showWarnings = FALSE)
+  temp <- here("Data", "Spatial", "NADA", "nada_hd2_cl.nc")
+  download.file("https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/nada_hd2_cl.nc", temp)
+}
+```
+
+```{r DL_PRISM}
+if(!dir.exists(here("Data", "Spatial", "PRISM"))){
+  dir.create(here("Data", "Spatial", "PRISM"), showWarnings = FALSE)
+  temp <- here("Data", "Spatial", "PRISM", "scpdsi_6_PRISM.nc")
+  download.file("http://www.wrcc.dri.edu/wwdt/data/PRISM/scpdsi/scpdsi_6_PRISM.nc", temp)
+
+  temp <- here("Data", "Spatial", "PRISM", "scpdsi_7_PRISM.nc")
+  download.file("http://www.wrcc.dri.edu/wwdt/data/PRISM/scpdsi/scpdsi_7_PRISM.nc", temp)
+
+  temp <- here("Data", "Spatial", "PRISM", "scpdsi_8_PRISM.nc")
+  download.file("http://www.wrcc.dri.edu/wwdt/data/PRISM/scpdsi/scpdsi_8_PRISM.nc", temp)
+  
+  temp <- here("Data", "Spatial", "PRISM", "PRISM_ppt_30yr_normal_800mM4_annual_asc.zip")
+  download.file("https://ftp.prism.oregonstate.edu/normals_800m/ppt/PRISM_ppt_30yr_normal_800mM4_annual_asc.zip", temp)
+  unzip(temp, exdir=here("Data", "Spatial", "PRISM"))
+  
+  temp <- here("Data", "Spatial", "PRISM", "PRISM_tmax_30yr_normal_800mM4_07_asc.zip")
+  download.file("https://ftp.prism.oregonstate.edu/normals_800m/tmax/PRISM_tmax_30yr_normal_800mM4_07_asc.zip", temp)
+  unzip(temp, exdir=here("Data", "Spatial", "PRISM"))
+  
+  temp <- here("Data", "Spatial", "PRISM", "PRISM_tmin_30yr_normal_800mM4_01_asc.zip")
+  download.file("https://ftp.prism.oregonstate.edu/normals_800m/tmin/PRISM_tmin_30yr_normal_800mM4_01_asc.zip", temp)
+  unzip(temp, exdir=here("Data", "Spatial", "PRISM"))
+}
+```
+
+```{r DEM}
+if(!file.exists(here("Data", "Spatial", "DEM", "DEM250.tif"))){
+  # Southern Rockies
+  srm <- st_read(here("Data", "Spatial", "EcoRegions", "us_eco_l3", "us_eco_l3.shp")) %>% filter(US_L3NAME == 'Southern Rockies') %>% st_transform(crs=5071) %>% st_buffer(20000)
+  dir.create(here("Data", "Spatial","DEM"), showWarnings = FALSE)
+
+ # 250 m 
+  dem <- get_tiles(data=srm, output_prefix = here("Data", "Spatial", "DEM", "DEM250"), services="elevation",   resolution=250)
+  dem.rast <- rast(dem$elevation)
+  writeRaster(dem.rast, here("Data", "Spatial", "DEM", "DEM250.tif"), overwrite=T)
+}
+```
+
+```{r Import_TreeRingSiteData}
+host.meta <- read.csv(here("Data", "TreeRing", "Processed", "Host", "host-metadata.csv"))
+nonhost.meta <- read.csv(here("Data", "TreeRing", "Processed", "Nonhost", "nonhost-metadata.csv"))
+
+hostXnonhost <- read.csv(here("Results", "hostXnonhost-subset.csv"))
+
+host.meta.sub <- host.meta %>% filter(SeriesCode %in% hostXnonhost$host)
+  
+select.nonhost.sites <- hostXnonhost[,c('nonhost1', 'nonhost2','nonhost3')] %>% unlist() %>% unique()
+nonhost.meta.sub <- nonhost.meta[nonhost.meta$SeriesCode %in% select.nonhost.sites, ]
+  
+nonhost.sites <- st_as_sf(x = nonhost.meta.sub,  coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
+
+host.sites.sub <- st_as_sf(x = host.meta.sub, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
+
+host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
+```
+
+```{r CharacterizeClimate}
+if(!file.exists(here("Results", "climate-norms-studyarea.csv"))){
+
+  # Douglas fir
+  if(!file.exists(here("Data", "Spatial", "NIDRM","f202.shp"))){
+    df.rast <- rast(here("Data", "Spatial", "NIDRM","f202"))
+    srm <- st_read(here("Data", "Spatial", "EcoRegions", "us_eco_l3", "us_eco_l3.shp"), quiet=T) %>% filter(US_L3NAME=="Southern Rockies") %>% st_transform(crs=st_crs(df.rast)) %>% vect()
+    df.rast <- crop(df.rast, srm)
+    df.rast[df.rast<10] <- NA
+    df.rast[df.rast>=10] <- 1
+
+    df.poly <- as.polygons(df.rast, aggregate=TRUE, values=TRUE, na.rm=TRUE) 
+ 
+    writeVector(df.poly, here("Data", "Spatial", "NIDRM","f202.shp"), overwrite=T)
+  }
+  df.poly <-vect(here("Data", "Spatial", "NIDRM","f202.shp"))
+  host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(st_crs(df.poly)) %>% st_buffer(1000)
+  df.poly <- crop(df.poly, host.sites)
+  
+  ppt.normal <- rast(here("Data", "Spatial", "PRISM", "PRISM_ppt_30yr_normal_800mM4_annual_asc.asc"))
+  tmin1.normal <- rast(here("Data", "Spatial", "PRISM", "PRISM_tmin_30yr_normal_800mM4_01_asc.asc"))
+  tmax7.normal <- rast(here("Data", "Spatial", "PRISM", "PRISM_tmax_30yr_normal_800mM4_07_asc.asc"))
+  dem <- rast(here( here("Data", "Spatial", "DEM", "DEM250.tif")))
+  
+  df.poly <- df.poly %>% project(ppt.normal)
+  climate.normals <- data.frame(metric=c("mean", "min", "max"))
+  
+  climate.normals$PPT <- NA
+  climate.normals[climate.normals$metric=="mean", ]$PPT <- terra::zonal(z=df.poly, x=ppt.normal, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
+  climate.normals[climate.normals$metric=="max", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
+  
+  climate.normals$TMIN <- NA
+  climate.normals[climate.normals$metric=="mean", ]$TMIN <- terra::zonal(z=df.poly, x=tmin1.normal, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$TMIN <-  quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
+  climate.normals[climate.normals$metric=="max", ]$TMIN <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
+  
+  climate.normals$TMAX <- NA
+  climate.normals[climate.normals$metric=="mean", ]$TMAX <- terra::zonal(z=df.poly, x=tmax7.normal, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$TMAX <-  quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.1)
+  climate.normals[climate.normals$metric=="max", ]$TMAX <- quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.9)
+  
+  df.poly <- df.poly %>% project(dem)
+  climate.normals$Elev <- NA
+  climate.normals[climate.normals$metric=="mean", ]$Elev <- terra::zonal(z=df.poly, x=dem, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$Elev <-  quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.1)
+  climate.normals[climate.normals$metric=="max", ]$Elev <- quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.9)
+
+  write.csv(climate.normals, file=here("Results", "climate-norms-studyarea.csv"), row.names = F)
+}
+```
+
+```{r FigStudyArea, fig.cap="The study area and WSB reconstruction sample sites. The green shading illustrates the distribution of Douglas fir and the thick black line shows the position of the Continental Divide. The study area's location relative to the contiguous western United States is shown in the inset map.", fig.height=4.5, fig.width=3.5}
+if(!file.exists(here("Results", "Figures", "FigStudyArea.jpg"))){
+  states <- st_read(here("Data", "Spatial", "States", "cb_2018_us_state_20m.shp")) %>% st_transform(proj.proj)
+
+  #Denver
+  denver <- st_read(here("Data", "Spatial", "Cities", "Colorado_City_Point_Locations.shp")) %>% filter(NAME=="DENVER") %>% st_transform(proj.proj)
+
+
+  douglasfir <- vect(here("Data", "Spatial", "NIDRM","f202.shp")) %>% project(nonhost.sites) %>% st_as_sf()
+  
+  x <- tmaptools::bb(nonhost.sites)
+  x[1] <- -107; x[2] <- 38.1; x[3] <- -104; x[4] <- 41.25
+  asp1 <- (x$ymax - x$ymin)/(x$xmax - x$xmin)
+  sg <- bb_poly(nonhost.sites, projection = st_crs(nonhost.sites))
+
+  
+  studyarea <- tm_shape(douglasfir, bbox=x) +  tm_fill(col="#5ab4ac") + tm_shape(nonhost.sites) +tm_symbols(size=0.25, shape=21,col="darkgray", alpha=1) + tm_shape(host.sites.sub) +tm_symbols(size=0.25, shape=17, col="black") + tm_shape(denver) +tm_symbols(shape=8, size=0.5, col="black") + tm_text("NAME", just=c(-0.25,0), size=0.7, remove.overlap=T) +  tm_scale_bar(position = c(0.95,0.005), text.size=0.75, just="right", breaks=c(0,50), bg.color="white", bg.alpha = 0.8)+tm_compass(position=c("right", "top"), text.size=0.75, size=2, type="4star")+tm_graticules(lines=F)
+
+  wus <- states %>% filter(STUSPS %in% c("WA", "OR", "CA", "ID", "NV", "AZ", "MT", "UT", "NM", "CO", "WY")) %>% st_transform(st_crs(douglasfir))
+  xy <- st_bbox(wus)
+  asp2 <- (xy$xmax - xy$xmin)/(xy$ymax - xy$ymin)
+  
+  insetmap = tm_shape(wus) + tm_fill(col="lightgrey") +
+  tm_shape(wus) + tm_borders(lwd = 1, col="grey") +
+  tm_shape(sg) + tm_borders(lw=2, col="black") +
+  tm_layout(inner.margins = c(0.04,0.04,0.04,0.04), outer.margins=c(0,0,0,0))
+  
+  w <- 0.3
+  h <- asp2 * w
+  vp <- viewport(x=0.15, y=0.009, width = w, height=h, just=c("left", "bottom"))
+  
+  tmap_save(studyarea,filename=here("Results", "Figures", "FigStudyArea.jpg"),
+          dpi=300, insets_tm=insetmap, insets_vp=vp,
+          height=4.5, width=3.5, units="in")
+
+}
+knitr::include_graphics(here("Results", "Figures", "FigStudyArea.jpg"))
+```
+
+## Data
+
+### Dendroecological data
+
+Ring-width data for reconstructing periods of WSB outbreak were collected from Douglas fir in the 1990s, but unpublished (Table S\@ref(tab:hostmeta)). Sample sites were selected based on the availability of large, old Douglas fir and the absence of evidence of recent (i.e., since c. 1940) fire or logging to minimize the potential effects of other disturbances on radial growth. At each site, tree-ring data were collected by preferentially sampling at least 20 large Douglas fir using an increment borer. Cores were transferred back to the lab, where they were dried, mounted, and sanded to a fine polish, following standard dendrochronological methods [@stokes1996]. Ring widths were then measured to a 0.01 mm precision using a Velmex UniSlide digital encoded traversing table paired with a standard light microscope. To ensure accurate dating, ring-width series were visually cross-dated using the maker year approach [@yamaguchi1991]. Cross-dating was then verified statistically using the *dplR* package [@bunn2024DplRDendrochronologyProgram] in R [@rcoreteam2022].
+
+### Geospatial disturbance data
+
+To characterize recent history of WSB outbreaks across the study area, we acquired ADS data from the USFS [@usfsanditspartners2020USDAForestService]. ADS data are collected annually via aerial sketch mapping by trained experts who record the disturbance agent, host species, and estimated outbreak severity across broad landscapes. Additionally, given young post-fire stands are not expected to be susceptible to WSB, we acquired data describing wildfire extent for the 1984-2022 period from the Monitoring Trends in Burn Severity Project [-@mtbsprojectMTBSDataAccess2022]. In the subsequent analyses of outbreaks with climate data, these recent fire history data allowed us to eliminate periods when stands would have been too young to be susceptible to WSB outbreak.
+
+### Climate data
+
+To characterize temporal variation in drought severity, we obtained multi-century (i.e., AD 1650-2005) records of the self-calibrating Palmer Drought Severity Index (SC-PDSI; [@wellsSelfCalibratingPalmerDrought2004, @palmer1965]) from the North American Drought Atlas (NADA), which provides tree-ring based reconstructions of June-August SC-PDSI on a 0.5° resolution grid [@cook2010]. Because the NADA reconstruction extends only to 2005, we also obtained gridded June-August SC-PDSI data from the West Wide Drought Tracker [@abatzoglouWestWideDrought2017]. This dataset is based on PRISM climate data [@prismclimategroup2021], which characterizes monthly precipitation and temperature, among other variables, at a 4 km resolution for the period 1895-present. PRISM datasets are constructed using data from weather stations and a digital elevation model to adjust for the complex effects of topography on weather and climate [@dalyKnowledgebasedApproachStatistical2002].
+
+For each site, we created time series of 1650-2005 SC-PDSI using the NADA product and 1981-2022 SC-PDSI values using the PRISM-based product by extracting the values for the cell the site fell within. We extended the SC-PDSI time series from the PRISM-based dataset back to 1700 using the following procedure. First, we scaled the mean and standard deviation of the NADA reconstruction to the mean of the detrended PRISM-based dataset, where the detrended values are the residuals from a linear regression of SC-PDSI vs. time during the common period between the two datasets (i.e., 1981-2005). We then spliced the two datasets, using the PRISM-based dataset to represent PDSI values from 1981-2022 and the adjusted NADA dataset to represent values from 1650-1980 [@schoennagelMultidecadalClimateVariability2007].
+
+```{r PRISM}
+if(!file.exists(here("Data", "prism-JJA.csv"))){
+  prism6_data <- rast(here("Data", "Spatial", "PRISM", "scpdsi_6_PRISM.nc"))
+  prism7_data <- rast(here("Data", "Spatial", "PRISM", "scpdsi_7_PRISM.nc"))
+  prism8_data <- rast(here("Data", "Spatial", "PRISM", "scpdsi_8_PRISM.nc"))
+  
+  prism6.hosts <- t(terra::extract(prism6_data, host.sites)[,-1 ])
+  colnames(prism6.hosts) <- host.sites$SeriesCode
+  startx <- row.names(prism6.hosts) %>% head(1) %>% strsplit(split="data_day=") %>% `[[`(1)  %>% '['(2) %>% as.numeric() %>% as.Date(origin="1900-01-01") %>% format(format="%Y")
+  endx <- row.names(prism6.hosts) %>% tail(1) %>% strsplit(split="data_day=") %>% `[[`(1)  %>% '['(2) %>% as.numeric() %>% as.Date(origin="1900-01-01") %>% format(format="%Y")
+  row.names(prism6.hosts) <- startx:endx
+  
+  prism7.hosts <- t(terra::extract(prism7_data, host.sites)[,-1])
+  colnames(prism7.hosts) <- host.sites$SeriesCode
+  startx <- row.names(prism7.hosts) %>% head(1) %>% strsplit(split="data_day=") %>% `[[`(1)  %>% '['(2) %>% as.numeric() %>% as.Date(origin="1900-01-01") %>% format(format="%Y")
+  endx <- row.names(prism7.hosts) %>% tail(1) %>% strsplit(split="data_day=") %>% `[[`(1)  %>% '['(2) %>% as.numeric() %>% as.Date(origin="1900-01-01") %>% format(format="%Y")
+  row.names(prism7.hosts) <- startx:endx
+  
+  prism8.hosts <- t(terra::extract(prism8_data, host.sites)[,-1])
+  colnames(prism8.hosts) <- host.sites$SeriesCode
+  startx <- row.names(prism8.hosts) %>% head(1) %>% strsplit(split="data_day=") %>% `[[`(1)  %>% '['(2) %>% as.numeric() %>% as.Date(origin="1900-01-01") %>% format(format="%Y")
+  endx <- row.names(prism8.hosts) %>% tail(1) %>% strsplit(split="data_day=") %>% `[[`(1)  %>% '['(2) %>% as.numeric() %>% as.Date(origin="1900-01-01") %>% format(format="%Y")
+  row.names(prism8.hosts) <- startx:endx
+  prism8.hosts <- prism8.hosts[-nrow(prism8.hosts),]
+   
+
+    prism.tmean.hist <- list.files(here("Data", "Spatial", "PRISM","PRISM_tmean_stable_4kmM3_189501_198012_bil"), pattern=".bil$", full.names=T) %>% rast()
+  prism.tmean.recent <- list.files(here("Data", "Spatial", "PRISM","PRISM_tmean_stable_4kmM3_198101_202304_bil"), pattern=".bil$", full.names=T) %>% rast()
+
+  prism.tmean.hist <- t(terra::extract(prism.tmean.hist, host.sites)[,-1 ])
+  colnames(prism.tmean.hist) <- host.sites$SeriesCode
+  
+  prism.tmean.recent <- t(terra::extract(prism.tmean.recent, host.sites)[,-1 ])
+  colnames(prism.tmean.recent) <- host.sites$SeriesCode
+  
+  prism.tmean <- rbind(prism.tmean.hist,prism.tmean.recent) %>% as.data.frame()
+  prism.tmean$time <- do.call(c,lapply(strsplit(row.names(prism.tmean), split="_"), "[", 5)) 
+  prism.tmean$year <- substr(prism.tmean$time, start=1, stop=4)
+  prism.tmean$month <- substr(prism.tmean$time, start=5, stop=6)
+  prism.tmean %>% write.csv(here("Data", "prism-tmean.csv"),row.names=F)
+  
+  
+   prism.ppt.hist <- list.files(here("Data", "Spatial", "PRISM","PRISM_ppt_stable_4kmM2_189501_198012_bil"), pattern=".bil$", full.names=T) %>% rast()
+  prism.ppt.recent <- list.files(here("Data", "Spatial", "PRISM","PRISM_ppt_stable_4kmM3_198101_202304_bil"), pattern=".bil$", full.names=T) %>% rast()
+
+  prism.ppt.hist <- t(terra::extract(prism.ppt.hist, host.sites)[,-1 ])
+  colnames(prism.ppt.hist) <- host.sites$SeriesCode
+  
+  prism.ppt.recent <- t(terra::extract(prism.ppt.recent, host.sites)[,-1 ])
+  colnames(prism.ppt.recent) <- host.sites$SeriesCode
+  
+  prism.ppt <- rbind(prism.ppt.hist,prism.ppt.recent) %>% as.data.frame()
+  prism.ppt$time <- do.call(c,lapply(strsplit(row.names(prism.ppt), split="_"), "[", 5)) 
+  prism.ppt$year <- substr(prism.ppt$time, start=1, stop=4)
+  prism.ppt$month <- substr(prism.ppt$time, start=5, stop=6)
+  prism.ppt %>% write.csv(here("Data", "prism-ppt.csv"),row.names=F)
+  
+  prism.vpdmax.hist <- list.files(here("Data", "Spatial", "PRISM","PRISM_vpdmax_stable_4kmM3_189501_198012_bil"), pattern=".bil$", full.names=T) %>% rast()
+  prism.vpdmax.recent <- list.files(here("Data", "Spatial", "PRISM","PRISM_vpdmax_stable_4kmM3_198101_202304_bil"), pattern=".bil$", full.names=T) %>% rast()
+
+  prism.vpdmax.hist <- t(terra::extract(prism.vpdmax.hist, host.sites)[,-1 ])
+  colnames(prism.vpdmax.hist) <- host.sites$SeriesCode
+  
+  prism.vpdmax.recent <- t(terra::extract(prism.vpdmax.recent, host.sites)[,-1 ])
+  colnames(prism.vpdmax.recent) <- host.sites$SeriesCode
+  
+  prism.vpdmax <- rbind(prism.vpdmax.hist,prism.vpdmax.recent) %>% as.data.frame()
+  prism.vpdmax$time <- do.call(c,lapply(strsplit(row.names(prism.vpdmax), split="_"), "[", 5)) 
+  prism.vpdmax$year <- substr(prism.vpdmax$time, start=1, stop=4)
+  prism.vpdmax$month <- substr(prism.vpdmax$time, start=5, stop=6)
+  prism.vpdmax %>% write.csv(here("Data", "prism-vpdmax.csv"),row.names=F)
+  
+}
+prism.JJA <- read.csv(here("Data", "prism-JJA.csv"))
+prism.tmean <- read.csv(here("Data", "prism-tmean.csv"))
+prism.ppt <- read.csv(here("Data", "prism-ppt.csv"))
+prism.vpdmax <- read.csv(here("Data", "prism-vpdmax.csv"))
+
+
+```
+
+```{r join_NADAxPRISM}
+if(!file.exists(here("Results", "pdsi-out.csv"))){
+  pdsi.out <-data.frame(matrix(nrow=length(1650:2022), ncol=length(host.sites$SeriesCode)+1))
+  colnames(pdsi.out) <- c("year",host.sites$SeriesCode)
+  pdsi.out$year <- 1650:2022
+  for(j in host.sites$SeriesCode){
+    prismj <- ts(prism.JJA[,j],start=min(prism.JJA$X))
+    nadaj <- ts(nada.hosts[,j],start=min(nada.hosts$X))
+    pdsi.combo <- cbind(prismj, nadaj)
+    yearz <- time(pdsi.combo)
+    pdsi.combo <- pdsi.combo %>% as.data.frame()
+    pdsi.combo$year <- yearz
+    lmx <- lm(prismj~year, data=na.omit(pdsi.combo[pdsi.combo$year>=1981,]))$residuals
+    mean.lmx <- lmx %>% mean()
+    sd.lmx <- lmx %>% sd()
+    pdsi.combo$nadaj <- (scale(pdsi.combo$nadaj) + mean.lmx) * sd.lmx
+    pdsi.out[,j] <- c(pdsi.combo[pdsi.combo$year <1981,]$nadaj, pdsi.combo[pdsi.combo$year >=1981,]$prismj)
+  }
+  pdsi.out$AVG <- pdsi.out %>% dplyr::select(-year) %>% rowMeans()
+  pdsi.out %>% write.csv(here("Results", "pdsi-out.csv"), row.names=F)
+}
+pdsi.out <- read.csv(here("Results", "pdsi-out.csv"))
+```
+
+## Reconstructing periods of past outbreak
+
+### Dendroecological approach
+
+A common strategy for detecting periods of WSB outbreak from tree-ring data is to compare the radial growth of the host species, here Douglas-fir, with the radial growth of a non-host species [@swetnam1989]. When the non-host species responds similarly to climate, host ring-width series can then be 'corrected' to remove the effects of interannual climate variability on the radial growth. This allows for the detection of periods of reduced radial growth that may attributed to non-climate factors, such as defoliation by WSB. Across our study area, both ponderosa pine and Douglas-fir have been known to respond negatively to periods of drought [@woodhouse2006], allowing for this method to be applied here.
+
+To follow this general approach, we first obtained all available ponderosa pine chronologies collected in the state of Colorado from the International Tree Ring Databank (ITRDB), as well as previously published chronologies from @veblen2000 (Table S\@ref(tab:nonhostmeta)). We then matched each Douglas-fir site with three non-host chronologies by identifying all non-host chronologies that were within 150 km of the sample site. We further limited this subset to the ponderosa pine chronologies that were collected in the mid-1990s or later, to ensure our records could be linked with geospatial data. Of this subset, we then selected the three chronologies that showed the greatest similarity in radial growth patterns. This was achieved by first detrending host and non-host ring width series with a negative exponential curve that was fit to the ring-width data using non-linear least squares. The raw ring widths were then divided by the best fitting curve to produce a time series of dimensionless ring-width index (RWI) values. RWI values were further detrended using a 30-year 50% frequency response cubic smoothing spline. This double detrending approach was selected to first remove long-term age-growth related trends and second remove interdecadal patterns that may occur due to disturbance, while preserving high-frequency interannual variation due to climate. Next, we built mean value chronologies from the detrended ring-width series by first pre-whitening each series using an autoregressive time series model. Mean values were then calculated from the residuals of the autoregressive model using a robust mean approach that minimizes the effect of extreme outliers [@speer2010]. We then identified the three non-host chronologies that best correlated with each host chronology using pairwise Pearson correlation coefficients. All detrending and chronology building was performed using the *dplR* package [@bunn2008] in R [@rcoreteam2022].
+
+After identifying the three non-host sites that best represented interannual climate variability at each host site, we reprocessed the tree-ring data to better isolate the effects of WSB defoliation on radial growth. Because WSB outbreaks may persist for a decade or more [@swetnam1993; @flower2016], we detrended both the host and non-host tree-ring data using a 100-year cubic smoothing spline to preserve variability at the interdecadal scale [@swetnam1985; @flower2014]. We then constructed mean value chronologies for the non-host sites by first removing serial autocorrelation and then calculating a robust estimate of the mean, as above. To create a single climate-sensitive record for each host site, we performed principal components analysis on the three non-host chronologies and extracted the first principal component to serve as the control series [@flower2014].
+
+```{r RWLS, results='hide'}
+# Host data
+host.rwls <- list.files(here("Data", "TreeRing", "Processed", "Host"), pattern=".rwl", full.names=T)
+names(host.rwls) <- gsub(".rwl", "", unlist(list.files(here("Data", "TreeRing", "Processed", "Host"), pattern=".rwl", full.names=F)))
+host.rwls <- lapply(host.rwls, read.rwl)
+  
+# Nonhost data
+nonhost.rwls <- list.files(here("Data", "TreeRing", "Processed", "NonHost"), full.names = T, pattern=".rwl")
+names(nonhost.rwls) <- gsub(".rwl", "", unlist(list.files(here("Data", "TreeRing", "Processed", "NonHost"), pattern=".rwl", full.names=F)))
+nonhost.rwls <- lapply(nonhost.rwls, read.rwl)
+```
+
+```{r Detrend, results='hide'}
+host.rwis <- lapply(host.rwls, detrend, method = "Spline", nyrs = 100)
+nonhost.rwis <- lapply(nonhost.rwls, detrend, method = "Spline", nyrs = 100)
+```
+
+```{r nonhost.crns, results='hide'}
+nonhost.crns <- lapply(nonhost.rwis, chron, biweight=T, prewhiten = TRUE)
+```
+
+To determine if individual trees experienced reductions in growth consistent with defoliation by WSB, we compared the detrended Douglas fir RWI with the control time series [@swetnam1985]. Specifically, we calculate the growth suppression index (GSI) using the following equation:
+
+$GSI_{i} =I_{ht} - (SD_{h}/SD_{n})*(I_{nt}-\bar{I}_{n})$
+
+where $I_{ht}$ is the host RWI value for host tree $h$ at year $t$, $SD_{h}$ is the standard deviation of the RWI series for host tree $h$, $SD_{n}$ is the standard deviation of nonhost control series, $I_{nt}$ is the nonhost control series value for year $t$, and $\bar{I}_{n}$ is mean value of the nonhost control series. GSI values less than one indicate periods of reduced radial growth relative to potential growth. For each tree, we then defined defoliation events when: (1) at least eight consecutive years of negative GSI and (2) at least one year exhibited a GSI value that was at least 1.28 standard deviations below the mean [@swetnam1985; @harvey2018]. We then defined stand-level periods of outbreak as periods where: (1) at least 40% of the host trees recorded a defoliation event for 4 or more years and (2) the sample depth was greater than 4 trees [@flower2014]. We performed the correction of host tree-ring series and determination of potential WSB defoliation events and outbreak events in R [@rcoreteam2022] using the dfoliatR package [@guiterman2020].
+
+```{r Defoliate}
+host.defol <- NULL # create empty object to hold defoliation objects
+host.outbreak <- NULL # create empty object to hold outbreak objects
+host.outbreak.stats <- NULL # create empty object to hold outbreak statistics objects
+
+for(j in host.meta.sub$SeriesCode){
+  host.rwis.j <- host.rwis[[j]]
+  
+  ## Create control series
+  nonhost.j <- hostxnonhost[hostxnonhost$host==j,c("nonhost1", "nonhost2", "nonhost3")] # get names of best correlated nonhost chronologies 
+  nonhost.crns.j<- list(nonhost.crns[[hostxnonhost[hostxnonhost$host==j,"nonhost1"]]], nonhost.crns[[hostxnonhost[hostxnonhost$host==j,"nonhost2"]]], nonhost.crns[[hostxnonhost[hostxnonhost$host==j,"nonhost3"]]]) # put best correlated nonhost chronologies in a list
+  nonhost.crns.j.ts <- lapply(nonhost.crns.j, FUN=function(x){return( ts(x, start=min(as.numeric(row.names(x)))) )}) # create timeseries object with all three chronologies
+  nonhost.crns.j.mts<- do.call(cbind, nonhost.crns.j.ts) [,c(-3,-6,-9)] # drop sample depth column
+  colnames(nonhost.crns.j.mts) <- c(paste0(nonhost.j[1], c("std", "res")),paste0(nonhost.j[2], c("std", "res")),paste0(nonhost.j[3], c("std", "res")))
+  nonhost.crns.j.mts <- na.omit(nonhost.crns.j.mts) # select only period where all three records overlap
+  nonhost.crns.j.pca <- prcomp(nonhost.crns.j.mts , retx=T) # perform principle component analysis
+  nonhost.crns.j.pca.df <- as.data.frame(nonhost.crns.j.pca$x[,1]) # extract first component
+  row.names(nonhost.crns.j.pca.df) <- time(nonhost.crns.j.mts) # set row names to years of common period
+
+  # determine when trees were defoliated
+  host.defol[[j]] <- defoliate_trees(host_tree=host.rwis.j, nonhost_chron = nonhost.crns.j.pca.df, duration_years = 8, max_reduction = -1.28, bridge_events = T, series_end_event = FALSE) 
+  
+    # determine when outbreaks occurred
+  host.outbreak[[j]] <- outbreak(host.defol[[j]], filter_min_series = 4, filter_min_defol = 2, filter_perc = 40) # determine when outbreak occurs
+  host.outbreak[[j]]$SeriesCode <- j # add series code to outbreak object
+  
+  host.outbreak.stats[[j]] <- outbreak_stats(host.outbreak[[j]])
+  host.outbreak.stats[[j]]$SeriesCode <- j # add series code to outbreak stats object
+}        
+```
+
+```{r regionalOutbreaks}
+thresholdr <- 0.33 # set threshold for det
+regional.outbreaks <- NULL
+for(j in host.meta.sub$SeriesCode){
+  x <- host.outbreak[[j]]
+  x.ts <- ts(x$outbreak_status, start=x$year[1])
+  x.ts[x.ts==3] <- 0 # reclassify not outbreak to 0
+  x.ts[x.ts==1] <- 1 # reclassify outbreak to 1 
+  x.ts[x.ts==2] <- 0 # reclassify ongoing outbreaks to 0
+  regional.outbreaks <- cbind(regional.outbreaks, x.ts)
+}
+colnames(regional.outbreaks) <- host.meta.sub$SeriesCode
+
+years <- time(regional.outbreaks)
+regional.outbreaks <- as.data.frame(regional.outbreaks)
+regional.outbreaks$year <- years
+
+# Calcuate number of sites with data
+regional.outbreaks$nsites <- apply(regional.outbreaks, MARGIN=1, FUN=function(x){length(na.omit(x))-1})
+
+# Calculate number of sites experiencing an outbreak
+regional.outbreaks$noutbreaks <- apply(regional.outbreaks, MARGIN=1, FUN=function(x){sum(x[1:(length(x)-2)], na.rm=T)})
+regional.outbreaks$noutbreaks[is.na(regional.outbreaks$noutbreaks)]<-0 # replace NA value with zero
+
+# Caclulate fraction of sites experiencing an outbreak
+regional.outbreaks$foutbreak <- regional.outbreaks$noutbreaks / regional.outbreaks$nsites
+regional.outbreaks$outbreak <- ifelse(regional.outbreaks$foutbreak >thresholdr & regional.outbreaks$noutbreak >=3, "outbreak","no outbreak")
+
+x <- regional.outbreaks %>% filter(outbreak=="outbreak")
+x$dif <- c(NA, diff(x$year, lag=1))
+start.yrs <- NULL
+end.yrs <- NULL
+
+counter <- min(x$year)
+while(counter < max(x$year)){
+  if(counter==min(x$year)){
+    start.year <- counter
+    x.sub <- x %>% filter(year>start.year)
+    index <- x.sub %>% filter(dif>1) %>% pull(year) %>% min()
+    index <-  which(x$year == index)
+    end.year <-   x[(index-1), ]$year
+    start.yrs <- c(start.yrs, start.year)
+    end.yrs <- c(end.yrs, end.year)
+    counter <- end.year
+    if(end.year == start.year){counter <- end.year+1}
+  }else{
+    x.sub <- x %>% filter(year>end.yrs[length(end.yrs)])
+    start.year <- x.sub %>% pull(year) %>% min()
+    index <- x.sub %>% filter(year>start.year & dif>1) %>% pull(year)
+    if(length(index)>0){
+      index <- index %>% min()
+      index <- which(x.sub$year == index)
+      end.year <- x.sub[(index-1),] %>% pull(year)
+    }else{
+      end.year <- max(x$year)
+    }
+    start.yrs <- c(start.yrs, start.year)
+    end.yrs <- c(end.yrs, end.year)
+    counter <- end.year
+  }
+}
+
+
+regional.outbreaks.sum <- data.frame(start=start.yrs, end=end.yrs)
+#Bridge regional outbreaks so that events separated by three or more years are considered a single event
+j <- 1
+while(j < nrow(regional.outbreaks.sum)){
+  regional.outbreaks.sum.j <- regional.outbreaks.sum[j,]
+  regional.outbreaks.sum.j2 <- regional.outbreaks.sum[(j+1),]
+  if((regional.outbreaks.sum.j2$start - regional.outbreaks.sum.j$end) <=3){
+    regional.outbreaks.sum[j,]$end <- regional.outbreaks.sum[(j+1),]$end
+    regional.outbreaks.sum <- regional.outbreaks.sum[-(j+1),]
+  }
+  j <- j +1
+}
+
+regional.outbreaks.sum$duration <- regional.outbreaks.sum$end-regional.outbreaks.sum$start+1
+regional.outbreaks.sum <- regional.outbreaks.sum %>% filter(duration>4)
+
+```
+
+### Combining tree-ring and geospatial data
+
+We extended tree-ring records of WSB outbreak by spatially joining point data describing the location of sample sites with ADS data describing the annual extent of WSB outbreak for the 1996-2021 period. Additionally, we joined sample site location with data describing wildfire extent [@mtbsprojectMTBSDataAccess2022] and the extent of Douglas-fir beetle (*Dendroctonus psuedotsugae*) outbreak, which both lead to mortality of Douglas fir and thereby may be limit the potential for outbreaks to occur. When sites were affected by either Douglas-fir beetle or fire, we truncated the record in the year prior to the disturbance.
+
+### Defining periods of regional outbreak
+
+Finally, we used the composite record to define periods of regional outbreak, defined here as two or more consecutive years where at least one third of the sites simultaneously recorded a WSB outbreak. Given not all records extend as far back in time, we limited the regional record to the time period where at least 50% of the sites were recording.
+
+```{r SpatialJoin_MTBS_ADS}
+if(!file.exists(here("Results", "burnedsites.csv"))){
+  fires <- st_read(here("Data", "Spatial", "MTBS", "mtbs_perims_DD.shp")) %>% st_transform(proj.proj) 
+  # find points within fire polygons
+  points_in_fires <- st_join(host.sites.sub, fires, join = st_within)
+  points_in_fires %>% as.data.frame() %>% dplyr::select(SeriesCode, Incid_Name, Ig_Date) %>% write.csv(here("Results", "burnedsites.csv"))
+}
+burnedsites <- read.csv(here("Results", "burnedsites.csv"))
+
+if(!file.exists(here("Results", "ADSsites.csv"))){
+  ADS <- st_read(here("Data", "Spatial", "ADS", "CONUS_Region2_AllYears.gdb")) %>% st_transform(proj.proj)
+  # find points within ADS polygons
+  ADS.sub <- ADS %>% filter(DCA_COMMON_NAME  %in% c("western balsam bark beetle", "Douglas-fir beetle")) 
+  points_in_ADS <- st_join(host.sites.sub, ADS.sub, join = st_within)
+  points_in_ADS %>% as.data.frame() %>% dplyr::select(SeriesCode, DCA_COMMON_NAME, SURVEY_YEAR) %>% write.csv(here("Results", "ADSsites.csv"))
+}
+ADSsites <- read.csv(here("Results", "ADSsites.csv"))
+
+geo.outbreak.dat <- data.frame(SeriesCode=burnedsites$SeriesCode, start.yr = 1996, end.yr = c(2020, 2020, 2020, 2020, 2001, 2001, 2001, 2020, 2019, 2019, 2020, 2020) )
+```
+
+```{r SummarizeOutbreakHistory}
+outbreak.summary.tab <- host.meta.sub[,c("SeriesCode","Lat", "Lon", "EarliestYr", "LatestYr")]
+outbreak.summary.tab$EarliestYr <- sapply(host.outbreak, FUN=function(x){return(min(x[x$samp_depth>=4, ]$year))})
+outbreak.summary.tab <- left_join(outbreak.summary.tab, geo.outbreak.dat, by="SeriesCode")
+host.outbreak.stats.df <- do.call(rbind, host.outbreak.stats[host.meta.sub$SeriesCode])
+host.outbreak.stats.df <- host.outbreak.stats.df %>% filter(duration>4)
+
+host.outbreak.stats.df$q <- NA
+for(j in host.meta.sub$SeriesCode){
+  host.outbreak.stats.df.j <-  host.outbreak.stats.df %>% filter(SeriesCode==j)
+  q <- host.outbreak.stats.df.j$start[-1] - host.outbreak.stats.df.j$end[-1*nrow(host.outbreak.stats.df.j)]
+  host.outbreak.stats.df[host.outbreak.stats.df$SeriesCode==j,]$q <- c(NA, q)
+}
+
+x <- host.outbreak.stats.df %>% group_by(SeriesCode) %>% summarise(no.outbreaks=n(), dur = round(mean(duration),1), duration.sd =round(sd(duration, na.rm=T),2), q=round(mean(q,na.rm=T),1))
+x$q.sd <- NA
+for(j in host.meta.sub$SeriesCode){
+  q<-  host.outbreak.stats.df %>% filter(SeriesCode==j) %>% pull(q) %>% sd(na.rm=T)
+ x[x$SeriesCode==j,]$q.sd <- round(q,2)
+}
+                                                                   
+outbreak.summary.tab <- left_join(outbreak.summary.tab , x)
+
+outbreak.summary.tab <- outbreak.summary.tab %>% unite(TOTAL, c(EarliestYr,end.yr), sep="-", remove=F)
+outbreak.summary.tab <- outbreak.summary.tab %>% unite(DENDRO,EarliestYr:LatestYr, sep="-", remove=T)
+outbreak.summary.tab <- outbreak.summary.tab %>% unite(GEO, start.yr:end.yr, sep="-", remove=T)
+ 
+host.outbreak.stats.df$SeriesCode <- factor(host.outbreak.stats.df$SeriesCode, levels=outbreak.summary.tab[order(outbreak.summary.tab$Lat,decreasing=F),]$SeriesCode, ordered=T)
+
+outbreak.summary.tab.print  <- outbreak.summary.tab %>% tidyr::unite(duration, dur:duration.sd, sep="\n(sd=")
+outbreak.summary.tab.print$duration <- paste0(outbreak.summary.tab.print$duration , ")")
+
+outbreak.summary.tab.print  <- outbreak.summary.tab.print %>% tidyr::unite(quiescent, q:q.sd, sep="\n(sd=")
+outbreak.summary.tab.print$quiescent <- paste0(outbreak.summary.tab.print$quiescent , ")")
+outbreak.summary.tab.print$Lat <- round(outbreak.summary.tab.print$Lat, 3)
+outbreak.summary.tab.print$Lon <- round(outbreak.summary.tab.print$Lon, 3)
+colnames(outbreak.summary.tab.print) <- c("Site", "Lat. \n(degrees)", "Lon. \n(degrees)", "Combined\nrecord length\n(years)", "Tree-ring\nrecord length\n(years)", "Geospatial\nrecord length\n(years)", "No. of\noutbreaks", "Avg. outbreak\nduration\n(years)", "Avg. quiescent\nperiod\n(years)")
+outbreak.summary.tab.print$Site <- factor(outbreak.summary.tab.print$Site, levels=levels(host.meta.sub$SeriesCode), ordered = T)
+outbreak.summary.tab.print <- outbreak.summary.tab.print %>% arrange(Site)
+```
+
+## Quantifying inter-site synchrony
+
+We tested for synchrony in site-level outbreak histories using several approaches. First, to quantify the level of agreement among records of the percent of trees defoliated at each site we calculated Kendall's coefficient of concordance (W), a non-parametric statistic that quantifies the multivariate agreement in terms of rank [@kendall1970RankCorrelationMethods]. Because Kendall's W does not distinguish between asynchrony and synchrony, we also calculated the mean inter-site Spearman's rank correlation (r~s~), which is sensitive to sample size but indicates correlation direction [@loreau2008SpeciesSynchronyIts; @gouhier2014SynchronyQuantifyingVariability]. Additionally, we calculated concurrency (C), a measure of the proportion of peaks and troughs in agreement between two variables, which is useful for quantifying synchrony when the amplitude of two time series are uncorrelated but local maxima and minima co-occur [@gouhier2014SynchronyQuantifyingVariability]. For both approaches, we determined statistical significance using a bootstrap resampling approach with 1000 replications, where each column in the dataset was shifted a random amount thereby preserving the serial autocorrelation present but not the cross-correlation [@purvesFinescaleSpatialStructure2002]. We performed these analyses using the *synchrony* package [@gouhier2014SynchronyQuantifyingVariability] in R [@rcoreteam2022].
+
+```{r percdefol.r}
+percdefol.ts <- NULL
+
+for(j in levels(host.meta.sub$SeriesCode)){
+  x <- host.outbreak[[j]]
+  x.ts <- ts(x$perc_defol, start=min(x$year))
+  percdefol.ts <- cbind(percdefol.ts , x.ts)
+}
+colnames(percdefol.ts ) <- levels(host.meta.sub$SeriesCode)
+
+percdefol.df <- data.frame(as.matrix(percdefol.ts), year=time(percdefol.ts))
+percdefol.df <- percdefol.df %>% pivot_longer(cols=TI:JP, values_to="percent")
+percdefol.df <- percdefol.df %>% mutate(name=factor(name, levels=levels(host.meta.sub$SeriesCode), ordered=T))
+
+Fig.file <- here("Results", "Figures", "Fig-PercentDefoliated.jpg")
+jpeg(Fig.file, width=4.48, height=6.5, units="in", res=300)
+ggplot(percdefol.df, aes(x=year, y=percent))+geom_bar(stat="identity", fill="grey25", col="grey25", width=.1)+facet_wrap(~name, nrow=12)+ylab("percent of trees defoliated")+ scale_y_continuous(breaks = c(0,50,100))
+whatever <- dev.off()
+
+listw <- list(kendall.w(window(percdefol.ts, start=1730, end=1998), nrands=1000, type=2, quiet=T),
+kendall.w(window(percdefol.ts, start=1750, end=1849), nrands=1000, type=2, quiet=T),
+kendall.w(window(percdefol.ts, start=1890,1989), nrands=1000, type=2, quiet=T))
+
+upper.fun <- function(x){return(data.frame(rs=x[upper.tri(x)]))}
+listx <- list(cor(window(percdefol.ts, start=1730, end=1998),use="pairwise.complete.obs", method="spearman"),
+cor(window(percdefol.ts, start=1750, end=1849), use="pairwise.complete.obs", method="spearman"),
+cor(window(percdefol.ts, start=1890,1989), use="pairwise.complete.obs", method="spearman"))
+cor.dat <- lapply(listx, upper.fun)
+cor.dat[[1]]$subset <- "1730-1998"
+cor.dat[[2]]$subset <- "1750-1849"
+cor.dat[[3]]$subset <- "1890-1989"
+cor.dat <- do.call(rbind, cor.dat)
+cor.dat$subset <- factor(cor.dat$subset, levels=c("1730-1998", "1750-1849", "1890-1989"), ordered=T)
+
+spearmans.time <- t.test(cor.dat[cor.dat$subset=="1890-1989", "rs"], cor.dat[cor.dat$subset=="1750-1849", "rs"])
+
+kendalls.w <- data.frame(subset=c("1730-1998", "1750-1849", "1890-1989"), W = sapply(listw, FUN=function(x){return(round(x$w.corrected,2))}),  "p-value" = sapply(listw, FUN=function(x){return(round(x$pval,4))}), r.mean=round(sapply(lapply(listx, upper.fun), colMeans),2), r.max=sapply(lapply(listx, upper.fun), max), r.min=sapply(lapply(listx, upper.fun), min))
+kendalls.w$subset <- factor(kendalls.w$subset, levels=c("1730-1998", "1750-1849", "1890-1989"), ordered=T)
+kendalls.w$p.value[kendalls.w$p.value==0] <- "<0.001"
+
+if(!file.exists(here("Results", "peakz-1730-1998.csv"))){
+  peakz <- data.frame(matrix(nrow=length(host.meta.sub$SeriesCode), ncol=length(host.meta.sub$SeriesCode)))
+  row.names(peakz) <- host.meta.sub$SeriesCode
+  colnames(peakz) <- host.meta.sub$SeriesCode   
+  peakz.p <-  peakz
+  peakz.max.lag <-  peakz
+  peakz.max.val <- peakz
+  for(j in  host.meta.sub$SeriesCode ){
+    for(k in 1:nrow(peakz)){
+      z <- NULL
+      for(t in -5:5){
+        percdefol.ts.win <- window(percdefol.ts, start=1750, end=1998) %>% na.omit()
+        percdefol.ts.win <- cbind(stats::lag(percdefol.ts.win[,j], k=t), percdefol.ts.win[,k]) %>% na.omit()
+        peakjk <- peaks(percdefol.ts.win[,1], percdefol.ts.win[,2])
+        z <- c(z, peakjk$obs)
+        if(t==0){
+          peakjk <- peaks(percdefol.ts.win[,1], percdefol.ts.win[,2], nrands=1000, type=2, quiet=T)
+          peakz[k,j] <- peakjk$obs
+          peakz.p[k,j] <- peakjk$pval
+        }
+      }
+    peakz.max.lag[k,j] <- paste0((-5:5)[which(z==max(z))][1], collapse=".")
+    peakz.max.val[k,j] <- max(z)
+    }
+  }
+  peakz %>% write.csv(here("Results", "peakz-1730-1998.csv"), row.names = T)
+  peakz.p %>% write.csv(here("Results", "peakz-p-1730-1998.csv"), row.names = T)
+  peakz.max.lag %>% write.csv(here("Results", "peakz-maxlag-1730-1998.csv"), row.names = T)
+  peakz.max.val %>% write.csv(here("Results", "peakz-maxvalue-1730-1998.csv"), row.names = T)
+  
+}
+
+if(!file.exists(here("Results", "peakz-1750-1849.csv"))){
+  peakz <- data.frame(matrix(nrow=length(host.meta.sub$SeriesCode), ncol=length(host.meta.sub$SeriesCode)))
+  row.names(peakz) <- host.meta.sub$SeriesCode
+  colnames(peakz) <- host.meta.sub$SeriesCode   
+  peakz.p <- data.frame(matrix(nrow=length(host.meta.sub$SeriesCode), ncol=length(host.meta.sub$SeriesCode)))
+  for(j in  host.meta.sub$SeriesCode ){
+    for(k in 1:nrow(peakz)){
+      peakjk <- peaks(window(percdefol.ts[,j],start=1750, end=1849), window(percdefol.ts[,k], start=1750, end=1849), nrands=1000, type=2, quiet=T)
+      peakz[k,j] <- peakjk$obs
+      peakz.p[k,j] <- peakjk$pval
+    }
+  }
+  peakz %>% write.csv(here("Results", "peakz-1750-1849.csv"), row.names = T)
+  peakz.p %>% write.csv(here("Results", "peakz-p-1750-1849.csv"), row.names = T)
+}
+
+if(!file.exists(here("Results", "peakz-1890-1989.csv"))){
+  peakz <- data.frame(matrix(nrow=length(host.meta.sub$SeriesCode), ncol=length(host.meta.sub$SeriesCode)))
+  row.names(peakz) <- host.meta.sub$SeriesCode
+  colnames(peakz) <- host.meta.sub$SeriesCode   
+  peakz.p <- data.frame(matrix(nrow=length(host.meta.sub$SeriesCode), ncol=length(host.meta.sub$SeriesCode)))
+  for(j in  host.meta.sub$SeriesCode ){
+    for(k in 1:nrow(peakz)){
+      peakjk <- peaks(window(percdefol.ts[,j],start=1890, end=1989), window(percdefol.ts[,k], start=1890, end=1989), nrands=1000, type=2, quiet=T)
+      peakz[k,j] <- peakjk$obs
+      peakz.p[k,j] <- peakjk$pval
+    }
+  }
+  peakz %>% write.csv(here("Results", "peakz-1890-1989.csv"), row.names = T)
+  peakz.p %>% write.csv(here("Results", "peakz-1890-1989.csv"), row.names = T)
+}
+count.p <- function(x){return(length(x[x<0.05])/nrow(x))}
+upper.fun <- function(x){return(data.frame(proportion=as.numeric(x[upper.tri(x)])))}
+
+peakz <- list( read.csv(here("Results", "peakz-1730-1998.csv")),read.csv(here("Results", "peakz-1750-1849.csv")), read.csv(here("Results", "peakz-1890-1989.csv")))
+names(peakz) <- c("1730-1998", "1750-1849", "1890-1989")
+peakz.mean <- sapply(lapply(peakz, upper.fun), colMeans, na.rm=T)
+peakz.time <- t.test(upper.fun(peakz$'1890-1989'), upper.fun(peakz$'1750-1849'))
+
+Fig.file <- here("Results", "Figures", "Fig-PairwiseCorrelation.jpg")
+jpeg(Fig.file, width=4.48, height=3, units="in", res=300)
+ggcorr(percdefol.ts, nbreaks = 7,  method = c("pairwise", "spearman"))
+whatever <- dev.off()
+```
+
+We then quantified the spatial scale at which WSB outbreak occurs synchronously using a spline correlogram [@bjornstadNonparametricSpatialCovariance2001]. Here, time series of the percent of trees defoliated at each site were used to calculate cross correlations. Confidence intervals around the correlation function were calculated using a bootstrap resampling approach with 1000 replications. Calculations were performed using the *ncf* package [@bjornstadNcfSpatialNonparametric2020] in R [@rcoreteam2022].
+
+```{r SNCF}
+if(!file.exists(here("Results", "Regional-sychrony.csv"))){
+  host.meta.sub <- host.meta.sub %>% arrange(SeriesCode)
+  host.sites.sub <- st_as_sf(x = host.meta.sub, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(26913)
+  z <- t(as.data.frame(window(percdefol.ts, start=1730, end=1998)))
+
+   sncf.percdefol <- Sncf(x=st_coordinates(host.sites.sub)[,1], y=st_coordinates(host.sites.sub)[,2], z, resamp = 1000, na.rm=T, quiet=T)
+  
+  sncf.percdefol.res <- data.frame(x=sncf.percdefol$real$predicted $x[1,], y=sncf.percdefol$real$predicted$y[1,], upper=sncf.percdefol$boot$boot.summary$predicted$y[10,], lower=sncf.percdefol$boot$boot.summary$predicted$y[2,])
+  sncf.plot <- ggplot(sncf.percdefol.res, aes(x=x/1000, y=y))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+ylim(-0.5,1)+xlim(0,100)+geom_abline(intercept = 0, slope = 0) +geom_abline(intercept = summary(sncf.percdefol)$Regional.synch, slope = 0, linetype = "dashed") +labs(x="distance (km)", y= "covariance")
+  
+  Regional.synch.1730.1998 <- summary(sncf.percdefol)$Regional.synch 
+  
+  z <- t(as.data.frame(window(percdefol.ts,start=1750, end=1849)))
+  sncf.percdefol <- Sncf(x=st_coordinates(host.sites.sub)[,1], y=st_coordinates(host.sites.sub)[,2], z, resamp = 1000, na.rm=T)
+  
+  sncf.percdefol.res <- data.frame(x=sncf.percdefol$real$predicted$x[1,], y=sncf.percdefol$real$predicted$y[1,], upper=sncf.percdefol$boot$boot.summary$predicted$y[10,], lower=sncf.percdefol$boot$boot.summary$predicted$y[2,])
+  sncf.plot.pre <- ggplot(sncf.percdefol.res, aes(x=x/1000, y=y))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+ylim(-0.5,1)+xlim(0,100)+geom_abline(intercept = 0, slope = 0) +geom_abline(intercept = summary(sncf.percdefol)$Regional.synch, slope = 0, linetype = "dashed") +labs(x="distance (km)", y= "covariance")
+
+  Regional.synch.1750.1849 <- summary(sncf.percdefol)$Regional.synch 
+  
+  z <- t(as.data.frame(window(percdefol.ts,start=1890, end=1989)))
+  sncf.percdefol <- Sncf(x=st_coordinates(host.sites.sub)[,1], y=st_coordinates(host.sites.sub)[,2], z, resamp = 1000, na.rm=T)
+  
+  sncf.percdefol.res <- data.frame(x=sncf.percdefol$real$predicted$x[1,], y=sncf.percdefol$real$predicted$y[1,], upper=sncf.percdefol$boot$boot.summary$predicted$y[10,], lower=sncf.percdefol$boot$boot.summary$predicted$y[2,])
+  sncf.plot.post <- ggplot(sncf.percdefol.res, aes(x=x/1000, y=y))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+ylim(-0.5,1)+xlim(0,100)+geom_abline(intercept = 0, slope = 0) +geom_abline(intercept = summary(sncf.percdefol)$Regional.synch, slope = 0, linetype = "dashed") +labs(x="distance (km)", y= "covariance")
+
+  Regional.synch.1890.1989 <- summary(sncf.percdefol)$Regional.synch
+  
+  
+  Fig.file <- here("Results", "Figures", "FigCovariance-Multi.jpg")
+  jpeg(Fig.file, width=7, height=3, units="in", res=300)
+  sncf.plot+labs(title="A - 1750-1998") + sncf.plot.pre+labs(title="B - 1750-1849") + sncf.plot.post+labs(title="C - 1890-1989")
+  whatever <- dev.off()
+  
+  Fig.file <- here("Results", "Figures", "FigCovariance.jpg")
+  jpeg(Fig.file, width=3.5, height=2.4, units="in", res=300)
+  sncf.plot
+  whatever <- dev.off()
+  
+    Regional.synch <- data.frame(years=c("1730-1998", "1750-1849", "1890-1989"), dataset="defoliated", synchrony=c(Regional.synch.1730.1998, Regional.synch.1750.1849, Regional.synch.1890.1989))
+    Regional.synch <- rbind(Regional.synch, c("1730-1998", "RWI",summary(sncf.nonhost)$Regional.synch))
+  Regional.synch %>% write.csv(here("Results", "Regional-sychrony.csv"), row.names=F)
+
+
+}
+  
+Regional.synch <- read.csv(here("Results", "Regional-sychrony.csv"))
+```
+
+Third, we used Multivariate Event Analysis to test for clustering among years of outbreak initiation and cessation. Multivariate Event Analysis is a modification of Ripley's K that identifies the synchrony of events in one dimension (time) within a defined window by comparing the timing of events within multiple records [@gavinWeakClimaticControl2006]. MEA was performed using the R implementation of the K1D software [@gavin2010K1DAnalysisSynchrony].
+
+```{r MEA}
+if(!file.exists(here("Results", "Figures", "MEA.jpg"))){
+  source(here("Code", "k1d.r"))
+  
+  ### INITIATION DATES
+  k1d.dat.initiation <- NULL
+  for(j in host.meta.sub$SeriesCode){
+    x <- host.outbreak.stats[[j]] %>% filter(duration>4)
+    x <- ts(x$start, start=1)
+   k1d.dat.initiation <- cbind(k1d.dat.initiation, x)
+  }  
+  colnames(k1d.dat.initiation) <- host.meta.sub$SeriesCode
+  
+  k1d.initiation.t<- k1d(k1d.dat.initiation,start=1730,end=2020 ,nstep=21,stepsize=1)
+  k1d.initiation.s <- k1d.sim(k1d.initiation.t,scenario="random",nsim=100,perc=c(0.025,0.975))
+  x <- data.frame(h=k1d.initiation.t$h, Lhat=k1d.initiation.t$Lhat, upper=k1d.initiation.s[1,], lower=k1d.initiation.s[2,])
+  y <- reshape2::melt(x, id.var='h')
+  
+  startk <- ggplot(x, aes(x=h, y=Lhat))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+geom_hline(yintercept=0)+labs(x = " ", y = "Temporal clustering", title = "A - Initiation (1730-2020)") +theme(legend.position="none") +ylim(-7.5, 7.5)
+  
+  ### CESSATION DATES
+  k1d.dat.cessation <- NULL
+  for(j in host.meta.sub$SeriesCode){
+    x <- host.outbreak.stats[[j]] %>% filter(duration>4)
+   x <- ts(x$end, start=1)
+   k1d.dat.cessation <- cbind(k1d.dat.cessation, x)
+  }  
+  colnames(k1d.dat.cessation) <- host.meta.sub$SeriesCode
+  source(here("Code", "k1d.r"))
+  k1d.cessation.t<- k1d(k1d.dat.cessation,start=1750,end=1998,nstep=21,stepsize=1)
+  k1d.cessation.s <- k1d.sim(k1d.cessation.t,scenario="random",nsim=100,perc=c(0.025,0.975))
+  x <- data.frame(h=k1d.cessation.t$h, Lhat=k1d.cessation.t$Lhat, upper=k1d.cessation.s[1,], lower=k1d.cessation.s[2,])
+  y <- reshape2::melt(x, id.var='h')
+  
+  endk <- ggplot(x, aes(x=h, y=Lhat))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+geom_hline(yintercept=0)+labs(x = "lag (years)", y = "Temporal clustering", title = "B - Cessation (1730-2020)") +theme(legend.position="none")  +ylim(-7.5, 7.5)
+    
+  Fig.file <- here("Results", "Figures", "MEA.jpg")
+  jpeg(Fig.file, width=3.5, height=3.5, units="in", res=300)
+  startk+xlab("lag (years)")+labs(title="A - Initiation") +endk+labs(title="B - Cessation")  + plot_layout(nrow=2)
+  whatever <- dev.off() 
+}
+
+
+
+```
+
+## Quantifying outbreak dynamics for periods before and after Euro-American settlement
+
+To determine if changes in land-use practices associated with Euro-American settlement influenced the dynamics of WSB outbreaks, we split our dataset into two 100-yr periods: (1) 1750-1849 and (2) 1890-1989, or approximately the centuries before and after intensive colonization, respectively [@veblen2000; @huckaby2001LandscapePatternsMontane; @veblen2005]. We then compared site-level outbreak characteristics during these two periods. Specifically, we compared: (1) the probability of an outbreak occurring in an individual year, (2) outbreak duration, (3) the length the period of quiescence between outbreaks, (4) the minimum normalized GSI, and (5) the percent of trees defoliated. Using a generalized linear mixed effect modeling approach, we then modeled the response variable as a function of a categorically variable describing the period as either 1750-1849 or 1890-1989 and tested the statistical hypothesis that the intercept differed from zero using a Wald test. In all models we included a random effect of site identity to account for multiple outbreak events within each site. In the model of outbreak occurrence in a given year, we additionally included a first order autocorrelation structure to account for temporal autocorrelation. Models were fit using Penalized Quasi-Likelihood using the packages MASS [@MASS] and nlme [@nlme] in R [@rcoreteam2022]. Additionally, we used spline correlograms to determine if the Euro-American colonization affected the spatial scale at which WSB outbreak occurs synchronously. We performed separate analyses for the 1750-1849 and 1890-1989 periods and visually compared the results.
+
+```{r ColonizationEffects}
+for(j in names(host.outbreak)){
+  last.tree.yr <- max(host.outbreak[[j]]$year)
+  last.geo.yr <- geo.outbreak.dat[geo.outbreak.dat$SeriesCode==j, ]$end.yr
+  supplement <- data.frame(year=(last.tree.yr+1):last.geo.yr, samp_depth=1, num_defol=NA, perc_defol=NA, num_max_defol=NA, perc_max_defol=NA, mean_gsi=NA, mean_ngsi=NA, outbreak_status="not_obr", SeriesCode=j)
+  host.outbreak[[j]] <- rbind(host.outbreak[[j]], supplement)
+}
+
+host.outbreak.lag <- lapply(host.outbreak, FUN=function(x){x$outbreak <- ifelse(x$outbreak=="outbreak", 1, 0); return(x)})
+host.outbreak.lag <- lapply(host.outbreak.lag, FUN=function(x){x$lag <- c(NA,x$outbreak[(-1*nrow(x))]); return(x)})
+host.outbreak.df <- do.call(rbind, host.outbreak.lag)
+
+host.outbreak.df.sub <- host.outbreak.df %>% filter(year>=1750)
+host.outbreak.df.sub <- host.outbreak.df.sub %>% filter(!(year %in% (1850:1889)))
+host.outbreak.df.sub$timeperiod <- ifelse(host.outbreak.df.sub$year <=1849, "1750-1849", "1890-1989")
+
+host.outbreak.stats.df.sub <- host.outbreak.stats.df %>% filter(start>1750)
+host.outbreak.stats.df.sub <- host.outbreak.stats.df.sub %>% filter(!(start %in% (1850:1889)))
+host.outbreak.stats.df.sub$timeperiod <- ifelse(host.outbreak.stats.df.sub$start <=1849, "1750-1849", "1890-1989")
+host.outbreak.stats.df.sub$n <- round(host.outbreak.stats.df.sub$n_df_start/(host.outbreak.stats.df.sub$perc_df_start/100))
+
+mod.ngsi <- glmmPQL(min_ngsi~timeperiod, random=~1|SeriesCode, family=gaussian, data=host.outbreak.stats.df.sub)
+mod.n_df_start <- glmmPQL(cbind(n_df_start,n)~timeperiod, random=~1|SeriesCode, family=binomial, data=host.outbreak.stats.df.sub)
+mod.duration <- glmmPQL(duration~timeperiod, random=~1|SeriesCode, family=poisson, data=host.outbreak.stats.df.sub)
+mod.q <- glmmPQL(q~timeperiod, random=~1|SeriesCode, family=poisson, data=host.outbreak.stats.df.sub)
+mod.outbreak <- glmmPQL(outbreak~timeperiod+lag, random=~1|SeriesCode, family=binomial(link="logit"), data=host.outbreak.df.sub)
+
+modz <- list(mod.outbreak,mod.duration, mod.q, mod.ngsi, mod.n_df_start)
+colonization.results <- data.frame(response=c("occurrence of years of outbreak", "duration of outbreak", "length of quiescent period", "minimum normalized GSI during outbreak events", "percent of trees defoliated at start of outbreak"))
+colonization.results$coefficient <- sapply(modz, FUN=function(x){return(round(summary(x)$coefficients$fixed[2],3))})
+
+colonization.results$p.value <- sapply(modz, FUN=function(x){return(round(summary(x)$tTable[2,5], 3))})
+
+colonization.results %>% write.csv(here("Results", "colonization.csv"))
+
+host.outbreak.df.sub$outbreak_status <- factor(host.outbreak.df.sub$outbreak_status, levels=c("not_obr","outbreak" ),labels=c("no outbreak","outbreak"), ordered=T)
+
+
+#p1.labs <- data.frame(timeperiod= c("1750-1849", "1890-1989"), label=c("a", "a"), outbreak_status="outbreak")
+p1.labs <- data.frame(timeperiod= c("1750-1849", "1890-1989"), label=paste0("n = ", table(host.outbreak.stats.df.sub$timeperiod)), outbreak_status="outbreak")
+p1 <- ggplot(host.outbreak.df.sub, aes(x=timeperiod))+geom_bar(position="fill", aes(fill=outbreak_status))+ylab("proportion of years\naffected by WSB outbreak")+ theme(axis.title.x=element_blank())+theme(legend.position = "none")+scale_fill_manual(values=c("white", "grey20"))+ylim(0,0.265)+geom_text(data=p1.labs, aes(label = label, x = timeperiod, fill=outbreak_status, y = c(0.26,0.205)), size=3)
+
+#p2.labs <- data.frame(timeperiod= c("1750-1849", "1890-1989"), label=c("a", "a"))
+p2 <- ggplot(host.outbreak.stats.df.sub, aes(x=timeperiod, y=duration))+geom_boxplot()+ylab("outbreak duration (years)")+ theme(axis.title.x=element_blank())+ylim(4,22)#+geom_text(data=p2.labs, aes(label = label, x =timeperiod, y = c(21.75,21)), size=3)
+
+p3.labs <- data.frame(timeperiod= c("1750-1849", "1890-1989"), label=c("a", "a"))
+p3 <- ggplot(host.outbreak.stats.df.sub, aes(x=timeperiod, y=min_ngsi))+geom_boxplot()+ylab("Minimum normalized\ngrowth suppression index")+ theme(axis.title.x=element_blank())+ylim(-3,-0.4)#+geom_text(data=p3.labs, aes(label = label, x =timeperiod, y = c(-0.8,-0.4)), size=3)
+
+p4.labs <- data.frame(timeperiod= c("1750-1849", "1890-1989"), label=c("a", "a"))
+p4 <- ggplot(host.outbreak.stats.df.sub, aes(x=timeperiod, y=perc_df_start))+geom_boxplot()+ylab("percent of trees defoliated\nat start of outbreak")+ theme(axis.title.x=element_blank())+ylim(40,90)#+geom_text(data=p4.labs, aes(label = label, x =timeperiod, y = c(86,68)), size=3)
+
+p5.labs <- data.frame(timeperiod= c("1750-1849", "1890-1989"), label=c("a", "a"))
+p5 <- ggplot(host.outbreak.stats.df.sub, aes(x=timeperiod, y=q))+geom_boxplot()+ylab("length of quiescent\nperiod (years)")+ theme(axis.title.x=element_blank())#+ylim(40,90)#+geom_text(data=p4.labs, aes(label = label, x =timeperiod, y = c(86,68)), size=3)
+
+Fig.file <- here("Results", "Figures", "Colonization.jpg")
+jpeg(Fig.file, width=7, height=2.5, units="in", res=300)
+p1+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p2+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p5+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p3+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+p4+theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+plot_layout(nrow=1)+plot_annotation(tag_levels = "A")
+whatever <- dev.off()
+```
+
+## Quantifying relationships between climate and outbreaks of the WSB
+
+To quantify the association between climate variability and WSB outbreak, we used several approaches. First, we used a t-test to determine if SC-PDSI differed during periods of regional outbreak and non-outbreak periods. To quantify SC-PDSI across the region, we averaged SC-PDSI across all sites. Given the assumption of independence of observations and strong serial autocorrelation in the regional SC-PDSI time series, we first fit an autoregressive model to the regional SC-PDSI time series. We used AIC [@akaikeInformationTheoryExtension1973] to select the level of complexity. We fit the autoregressive model using the R package *stats* [@rcoreteam2022] and then performed the t-test on the model residuals.
+
+```{r ttest}
+pdsi.out$AVG.resid <- ar(ts(pdsi.out$AVG, start=min(pdsi.out$year)))$resid
+regional.outbreaks.ex <- data.frame(B18=NA, B19=NA, LJ=NA, SS=NA, WR=NA, JP=NA, WW=NA, SR=NA, NI=NA, SP=NA, WB=NA, TI=NA, year=2000:2020, nsites=NA, noutbreaks=NA, foutbreak=NA, outbreak="no outbreak")
+regional.outbreaks$year <- as.numeric(regional.outbreaks$year)
+regional.outbreaks.ex  <- rbind(regional.outbreaks, regional.outbreaks.ex)
+
+all.outbreak.yrs <- host.outbreak.df %>% filter(outbreak_status=="outbreak") %>% pull(year) %>% unique()
+regional.outbreaks.ex$all.outbreak <- ifelse(regional.outbreaks.ex$year %in% all.outbreak.yrs, "outbreak", "no outbreak")
+
+x <- full_join(pdsi.out, regional.outbreaks.ex, by="year")
+x <- x[x$year>=1750,]
+x <- na.omit(x[,c("year", "AVG.resid", "AVG", "outbreak", "all.outbreak")])
+
+x.total <- x[x$year %in% 1730:2020, ]
+xt <- t.test(x.total[x.total$outbreak=="outbreak", "AVG.resid"],x.total[x.total$outbreak=="no outbreak", "AVG.resid"] )
+
+pdsi.t <- t.test(x[x$year %in% 1750:1849, "AVG.resid"], x[x$year %in% 1890:1989, "AVG.resid"],)
+
+xt.labs <- data.frame(timeperiod= c("outbreak", "no outbreak"), label=c("b", "a"))
+
+x.early <- x[x$year %in% 1750:1849,]
+x.early.t <- t.test(x.early[x.early$outbreak=="outbreak", "AVG.resid"],x.early[x.early$outbreak=="no outbreak", "AVG.resid"] )
+
+x.early.labs <- data.frame(timeperiod= c("outbreak", "no outbreak"), label=c("b", "a"))
+
+x.late <- x[x$year %in% 1890:1989,]
+x.late.t <- t.test(x.late[x.late$outbreak=="outbreak", "AVG.resid"],x.late[x.late$outbreak=="no outbreak", "AVG.resid"] )
+
+x.late.labs <- data.frame(timeperiod= c("outbreak", "no outbreak"), label=c("a", "a"))
+
+p1 <- ggplot(x, aes(x=outbreak, y=AVG))+geom_boxplot()+ylab("JJA SC-PDSI")+theme(axis.title.x=element_blank())+geom_text(data=xt.labs, aes(label = label, x =timeperiod, y = c(6.3,5.9)), size=3)+ylim(-8, 6.5)
+
+p2 <- ggplot(x.early, aes(x=outbreak, y=AVG))+geom_boxplot()+ylab("JJA SC-PDSI")+theme(axis.title.x=element_blank())+geom_text(data=x.early.labs, aes(label = label, x =timeperiod, y = c(6.3,5.9)), size=3)+ylim(-8, 6.5)
+
+p3 <- ggplot(x.late, aes(x=outbreak, y=AVG))+geom_boxplot()+ylab("JJA SC-PDSI")+theme(axis.title.x=element_blank())+geom_text(data=x.late.labs, aes(label = label, x =timeperiod, y = c(6.3,5.9)), size=3)+ylim(-8, 6.5)+theme(axis.title.y=element_blank(), axis.text.y=element_blank())
+
+x$time.period <- NA
+x[x$year %in% 1750:1849,]$time.period <- "1750-1849"
+x[x$year %in% 1890:1989,]$time.period <- "1890-1989"
+xx <- x[x$time.period %in% c("1750-1849","1890-1989"),]
+
+xxt.labs <- data.frame(time.period= c("1750-1849", "1890-1989"), label=c("a", "a"))
+p4 <- ggplot(xx, aes(x=time.period, y=AVG))+geom_boxplot()+ylab("SC-PDSI")+theme(axis.title.x=element_blank())+geom_text(data=xxt.labs, aes(label = label, x =time.period, y = c(6.3,5.9)), size=3)+ylim(-8, 6.5)
+
+ 
+Fig.file <- here("Results", "Figures", "T.jpg")
+jpeg(Fig.file, width=3.5, height=2, units="in", res=300)
+p2+labs(title = "A - 1750-1849")+p3+labs(title = "B - 1890-1989")+plot_layout(nrow=1)
+whatever <- dev.off()
+
+Fig.file <- here("Results", "Figures", "T-simple.jpg")
+jpeg(Fig.file, width=3.5, height=2, units="in", res=300)
+p1
+whatever <- dev.off()
+
+Fig.file <- here("Results", "Figures", "T-PDSI.jpg")
+jpeg(Fig.file, width=3.5, height=2, units="in", res=300)
+p4
+whatever <- dev.off()
+
+```
+
+We then used superposed epoch analysis [@loughAssessmentPossibleEffects1987] to compare SC-PDSI values in years with and without outbreak initiations and cessations [@flower2014; @harvey2018]. Specifically, we used superposed epoch analysis to calculate the departure from the mean SC-PDSI for the years prior to a year of outbreak initiation (cessation), during the year of outbreak initiation (cessation), and following the year of outbreak initiation (cessation) using an 11-year window centered on the event year [@flower2014; @ellisMulticenturyDendrochronologicalReconstruction2017]. To determine if departures from the mean value were significant, we used 1000 bootstrap samples with a block resampling design that preserved autocorrelation in a 5-year window. While block resampling estimates null distributions for serially autocorrelated data, p-values generated in this way may be still be too small if autocorrelation is strong (i.e., \> 60%) over lags greater than the analysis interval. Thus prior to running our superposed epoch analyses, we confirmed that minimal (r\<0.05) serial correlation existed at lags greater than 5 years. We superposed epoch analyses using the dates of outbreak initiation and cessation from the regional outbreak record and the regional SC-PDSI time series. Superposed epoch analysis was performed in R [@rcoreteam2022] using the *dplR* package [@bunn2024DplRDendrochronologyProgram; @bunn2008].
+
+```{r sea.regional}
+pdsi.out.avg <- pdsi.out %>% filter(year>=1730 & year <=2020) %>% dplyr::select(AVG)
+row.names(pdsi.out.avg) <- 1730:2020
+sea.initiation.regional <- sea(x=pdsi.out.avg, key=regional.outbreaks.sum[regional.outbreaks.sum$start>1730,]$start, lag=5)
+sea.initiation.regional$sig <- cut(sea.initiation.regional$p, breaks=c(0,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
+
+sea.cessation.regional <- sea(x=pdsi.out.avg, key=regional.outbreaks.sum[regional.outbreaks.sum$start>1730,]$end, lag=5)
+sea.cessation.regional$sig <- cut(sea.cessation.regional$p, breaks=c(0,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
+
+p1 <- ggplot(sea.initiation.regional, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black","grey30", "lightgrey"),drop=F)+ylab("JJA SC-PDSI")+xlab("lag (years)")+labs(title = "A - Initiation")
+
+p2 <- ggplot(sea.cessation.regional, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black","grey30", "lightgrey"),drop=F)+ylab("JJA PDSI")+xlab("lag (years)")+labs(title = "B - Cessation")
+
+Fig.file <- here("Results", "Figures", "SEA-Regional.jpg")
+jpeg(Fig.file, width=3.5, height=3, units="in", res=300)
+p1+ylim(-1.5,2.5)+ p2+ylim(-1.5,2.5) + theme(axis.title.y = element_blank(), axis.text.y = element_blank()) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+whatever <- dev.off()
+
+pdsi.out.avg.1750.1849 <- pdsi.out %>% filter(year>=1750 & year <=1849) %>% dplyr::select(AVG)
+row.names(pdsi.out.avg.1750.1849 ) <- 1750:1849
+sea.initiation.regional.1750.1849  <- sea(x=pdsi.out.avg.1750.1849, key=regional.outbreaks.sum[regional.outbreaks.sum$start>=1750 & regional.outbreaks.sum$start<=1849, ]$start, lag=5)
+sea.initiation.regional.1750.1849$sig <- cut(sea.initiation.regional.1750.1849$p, breaks=c(0,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
+
+sea.cessation.regional.1750.1849  <- sea(x=pdsi.out.avg.1750.1849, key=regional.outbreaks.sum[regional.outbreaks.sum$start>=1750 & regional.outbreaks.sum$start<=1849, ]$end, lag=5)
+sea.cessation.regional.1750.1849$sig <- cut(sea.cessation.regional.1750.1849$p, breaks=c(0,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
+
+p1.1750.1849 <- ggplot(sea.initiation.regional.1750.1849, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black","grey30", "lightgrey"), drop=F)+ylab("JJA SC-PDSI anomaly")+xlab("lag (years)")+labs(title = "A - Initiation")
+
+p2.1750.1849 <- ggplot(sea.cessation.regional.1750.1849, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black","grey30", "lightgrey"), drop=F)+ylab("JJA PDSI anomaly")+xlab("lag (years)")+ labs(title = "B - Cessation")
+
+
+pdsi.out.avg.1890.1989 <- pdsi.out %>% filter(year>=1890 & year <=1989) %>% dplyr::select(AVG)
+row.names(pdsi.out.avg.1890.1989 ) <- 1890:1989
+sea.initiation.regional.1890.1989  <- sea(x=pdsi.out.avg.1890.1989, key=regional.outbreaks.sum[regional.outbreaks.sum$start>=1890 & regional.outbreaks.sum$start<=1989, ]$start, lag=5)
+sea.initiation.regional.1890.1989$sig <- cut(sea.initiation.regional.1890.1989$p, breaks=c(0,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
+
+sea.cessation.regional.1890.1989  <- sea(x=pdsi.out.avg.1890.1989, key=regional.outbreaks.sum[regional.outbreaks.sum$start>=1890 & regional.outbreaks.sum$start<=1989, ]$end, lag=5)
+sea.cessation.regional.1890.1989$sig <- cut(sea.cessation.regional.1890.1989$p, breaks=c(0,0.05, 0.1, 1), labels=c("p<0.05", "0.05>p<0.10", "p>0.1"), include.lowest=T)
+
+p1.1890.1989 <- ggplot(sea.initiation.regional.1890.1989, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black","grey30", "lightgrey"), drop=F)+ylab("JJA SC-PDSI anomaly")+xlab("lag (years)")+labs(title = "A - Initiation")
+
+p2.1890.1989 <- ggplot(sea.cessation.regional.1890.1989, aes(x=lag, y=se.unscaled, fill=sig))+geom_bar(stat="identity")+theme(legend.position="bottom", legend.title=element_blank())+scale_fill_manual(values=c("black","grey30", "lightgrey"), drop=F)+ylab("JJA PDSI anomaly")+xlab("lag (years)")+labs(title = "B - Cessation")
+
+Fig.file <- here("Results", "Figures", "SEA-Regional-time.jpg")
+jpeg(Fig.file, width=7, height=4, units="in", res=300)
+p1+ylim(-3,4)+labs(title = "A - Initiation (all years)")+theme(axis.title.x = element_blank(), axis.text.x = element_blank())+p1.1750.1849+ylim(-3,4)+labs(title= "B - Initiation (1750-1849)")+theme(axis.title.y=element_blank(), axis.text.y=element_blank(),axis.title.x = element_blank(), axis.text.x = element_blank())+p1.1890.1989+ylim(-3,4)+labs(title= "C - Initiation (1890-1989)")+theme(axis.title.y=element_blank(), axis.text.y=element_blank(),axis.title.x = element_blank(), axis.text.x = element_blank())+ p2+ylim(-3,4)+labs(title = "D - Cessation (all years)")+ p2.1750.1849+ylim(-3,4)+labs(title= "E - Cessation (1750-1849)")+theme(axis.title.y=element_blank(), axis.text.y=element_blank())+ p2.1890.1989+ylim(-3,4)+labs(title= "F - Cessation (1890-1989)")+theme(axis.title.y=element_blank(), axis.text.y=element_blank())+theme(axis.title.y = element_blank(), axis.text.y = element_blank()) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+whatever <- dev.off()
+
+```
+
+To determine if the duration or severity of multi-year drought (i.e., negative SC-PDSI) or wet periods (i.e., positive SC-PDSI) were important in WSB outbreak dynamics, we first determined periods of drought and wet periods for each site-level SC-PDSI record. For each site-level outbreak event, we then determined the period of drought prior to outbreak initiation, the wet period concurrent with initiation, wet period concurrent with outbreak cessation, and dry period following outbreak cessation. For each of these periods, we then calculated the duration and mean and extreme SC-PDSI value (i.e., greatest PDSI value for wet periods and lowest SC-PDSI value for droughts). We then used a t-test to compare these values with expected values, which were generated from the periods of drought and wet periods present in the entire time series.
+
+```{r PDSIperiod}
+pdsi.out$drought <- ifelse(pdsi.out$AVG>=0, 1, -1) 
+start.year <- pdsi.out %>% na.omit() %>% filter(drought==1) %>% pull(year) %>% min()
+pdsi.sub <- pdsi.out %>% filter(year>=start.year)
+res <- data.frame(start=NA, end=NA, mean=NA, max=NA,start.pre=NA, end.pre=NA, mean.pre=NA, min.pre=NA, start.post=NA, end.post=NA, mean.post=NA, min.post=NA)
+for(j in pdsi.sub$year[-1]){
+  if(pdsi.sub %>% filter(year==j) %>% pull(drought) == 1){
+    if(pdsi.sub %>% filter(year==(j-1)) %>% pull(drought) == -1){
+      pdsi.subj <- pdsi.sub %>% filter(year>=j)
+      if(!is.na(max(res$end))){
+        end.j <- pdsi.subj %>% filter(drought==-1) %>% filter(year>max(res$end)) %>% pull(year) %>% min()
+        mean.j <- pdsi.sub %>% filter(year %in% j:(end.j-1)) %>% pull(AVG) %>% mean()
+        max.j <- pdsi.sub %>% filter(year%in% j:(end.j-1)) %>% pull(AVG) %>% max()
+        drought.start <- pdsi.sub %>% filter(year<j) %>% filter(drought==1) %>% max() +1
+        drought.mean <- pdsi.sub %>% filter(year %in% drought.start:(j-1)) %>% pull(AVG) %>% mean()
+        drought.min <- pdsi.sub %>% filter(year %in% drought.start:(j-1)) %>% pull(AVG) %>%  min()
+        post.start <- end.j
+        post.end <- pdsi.subj %>% filter(year>post.start & drought==1) %>% pull(year) %>% min()
+          if(!is.infinite(post.end)){
+            post.mean <- pdsi.sub %>% filter(year %in% post.start:(post.end-1)) %>% pull(AVG) %>%  mean()
+            post.min <- pdsi.sub %>% filter(year %in% post.start:(post.end-1)) %>% pull(AVG) %>%  min()
+          }else{
+            post.mean <- NA
+            post.min < - NA
+          }
+     }else{
+     end.j <- pdsi.subj %>% filter(drought==-1) %>% pull(year) %>% min()
+     mean.j <- pdsi.sub %>% filter(year %in% j:(end.j-1)) %>% pull(AVG) %>% mean()
+     max.j <- pdsi.sub %>% filter(year%in% j:(end.j-1)) %>% pull(AVG) %>% max()
+     drought.start <- pdsi.sub %>% filter(year<j) %>% filter(drought==1) %>% max() +1
+     drought.mean <- pdsi.sub %>% filter(year %in% drought.start:(j-1)) %>% pull(AVG) %>%  mean()
+     drought.min <- pdsi.sub %>% filter(year %in% drought.start:(j-1)) %>% pull(AVG) %>%  min()
+     post.start <- end.j
+     post.end <- pdsi.subj %>% filter(year>post.start & drought==1) %>% pull(year) %>% min()
+       if(!is.infinite(post.end)){
+          post.mean <- pdsi.sub %>% filter(year %in% post.start:(post.end-1)) %>% pull(AVG) %>%  mean()
+          post.min <- pdsi.sub %>% filter(year %in% post.start:(post.end-1)) %>% pull(AVG) %>%  min()
+        }else{
+          post.mean <- NA
+          post.min < - NA
+        }
+      }
+      res <- rbind(res, c(j, (end.j-1), mean.j, max.j, drought.start, (j-1), drought.mean, drought.min, post.start, post.end, post.mean, post.min))
+    }
+  }
+}
+res$duration <- res$end - res$start +1
+res$duration.pre <- res$end.pre - res$start.pre +1
+res$duration.post <- res$end.post - res$start.post +1
+res$year <- res$start
+
+res.initiation <- left_join(regional.outbreaks, res, by='year')
+res.initiation <- res.initiation %>% mutate(start=na.locf(start, na.rm=F), end=na.locf(end, na.rm=F), duration=na.locf(duration, na.rm=F), mean=na.locf(mean, na.rm=F), max=na.locf(max, na.rm=F),start.pre=na.locf(start.pre, na.rm=F), end.pre=na.locf(end.pre, na.rm=F),duration.pre=na.locf(duration.pre, na.rm=F), mean.pre=na.locf(mean.pre, na.rm=F), min.pre=na.locf(min.pre, na.rm=F), start.post=na.locf(start.post, na.rm=F), end.post=na.locf(end.post, na.rm=F),duration.post=na.locf(duration.post, na.rm=F), mean.post=na.locf(mean.post, na.rm=F), min.post=na.locf(min.post, na.rm=F))
+
+regional.outbreaks.sum$year <- regional.outbreaks.sum$start
+regional.outbreaks.sum$var <- "initiation"
+res.initiation <- left_join(regional.outbreaks.sum[,c("year", "var")], res.initiation, by='year')
+res.initiation <- res.initiation[,colnames(res)]
+res.initiation$plotby <- "outbreak"
+
+all <- res
+all$plotby <- "all years"
+
+rall <- rbind(res.initiation, all)
+rall <- rall %>% filter(year>=1730) %>% dplyr::select(start:plotby) %>% pivot_longer(mean:duration.post) %>% filter(!name %in% c("start.pre", "end.pre"))
+
+rall$x <- factor(rall$name, levels=c("mean", "max", "mean.pre", "min.pre", "duration", "duration.pre", "mean.post", "min.post", "duration.post"), labels=c("wet period concurrent with outbreak initiation", "wet period concurrent with outbreak initiation", "dry period prior to outbreak initiation", "dry period prior to outbreak initiation", "wet period concurrent with outbreak initiation","dry period prior to outbreak initiation", "dry period following outbreak initiation","dry period following outbreak initiation","dry period following outbreak initiation"))
+
+rall$var <- factor(rall$name, levels=c("mean", "max", "mean.pre", "min.pre", "duration", "duration.pre", "mean.post", "min.post", "duration.post"), labels=c("mean JJA SC-PDSI", "extreme JJA SC-PDSI", "mean JJA SC-PDSI", "extreme JJA SC-PDSI", "duration (years)","duration (years)", "mean JJA SC-PDSI","extreme JJA SC-PDSI","duration (years)"))
+rall[is.infinite(rall$value)==TRUE,]$value <- NA
+
+results.timeperiod <- expand.grid(variable=na.omit(unique(rall$var)), period=na.omit(unique(rall$x)))
+results.timeperiod $p.value <- NA
+results.timeperiod $t <- NA
+for(j in na.omit(unique(rall$var))){
+  for(k in na.omit(unique(rall$x))){
+   rall.jk <-  rall %>%  filter(var==j & x ==k)
+   #rall.jk <- na.omit(rall.jk[,c("plotby", "value")])
+   t.jk <- t.test(rall.jk[rall.jk$plotby=="outbreak",]$value, rall.jk[rall.jk$plotby=="all years",]$value)
+   results.timeperiod [results.timeperiod $variable==j & results.timeperiod$period==k, ]$t <-  round(t.jk$statistic,2)
+   results.timeperiod [results.timeperiod $variable==j & results.timeperiod$period==k, ]$p.value <- round( t.jk$p.value,2)
+  }
+}
+results.timeperiod $event <- "initiation"
+
+rall$x <- factor(rall$x,  levels=c("dry period prior to outbreak initiation","wet period concurrent with outbreak initiation", "dry period following outbreak initiation"), labels=c("dry period prior\nto outbreak initiation","wet period concurrent\nwith outbreak initiation","dry period following \noutbreak initiation"), ordered=T)
+
+
+p1 <- rall %>% filter(var=="mean JJA SC-PDSI" & x %in% c("dry period prior\nto outbreak initiation", "wet period concurrent\nwith outbreak initiation")) %>%  ggplot(aes(x=plotby,y=value))+geom_boxplot()+geom_jitter(col="#0072B2", width=0.1, size=.5)+facet_wrap(~x, scales="free_y", nrow=1)+theme(axis.title.x = element_blank())+ylab("mean JJA SC-PDSI")
+p2 <- rall %>% filter(var=="extreme JJA SC-PDSI" & x %in% c("dry period prior\nto outbreak initiation", "wet period concurrent\nwith outbreak initiation")) %>%  ggplot(aes(x=plotby,y=value))+geom_boxplot()+geom_jitter(col="#0072B2",width=0.1, size=.5)+facet_wrap(~x, scales="free_y", nrow=1)+theme(axis.title.x = element_blank())+ylab("extreme JJA SC-PDSI")
+p3 <- rall %>% filter(var=="duration (years)" & x %in% c("dry period prior\nto outbreak initiation", "wet period concurrent\nwith outbreak initiation")) %>%  ggplot(aes(x=plotby,y=value))+geom_boxplot()+geom_jitter(col="#0072B2",width=0.1, size=.5)+facet_wrap(~x, scales="free_y", nrow=1)+theme(axis.title.x = element_blank())+ylab("duration (years)")+
+  scale_y_continuous( breaks=pretty_breaks())
+
+period.initiation.mean <- rall %>% group_by(name,plotby) %>% summarize(mean=mean(value, na.rm=T))
+
+# Cessation
+res.cessation <- left_join(regional.outbreaks, res, by='year')
+res.cessation <- res.cessation %>% mutate(duration=na.locf(duration, na.rm=F), mean=na.locf(mean, na.rm=F), max=na.locf(max, na.rm=F),duration.pre=na.locf(duration.pre, na.rm=F), mean.pre=na.locf(mean.pre, na.rm=F), min.pre=na.locf(min.pre, na.rm=F), duration.post=na.locf(duration.post, na.rm=F), mean.post=na.locf(mean.post, na.rm=F), min.post=na.locf(min.post, na.rm=F))
+
+regional.outbreaks.sum$year <- regional.outbreaks.sum$end
+regional.outbreaks.sum$var <- "cessation"
+res.cessation <- left_join(regional.outbreaks.sum[,c("year", "var")], res.cessation, by='year')
+res.cessation <- res.cessation[,colnames(res)]
+res.cessation$plotby <- "outbreak"
+
+all <- res
+all$plotby <- "all years"
+
+rall <- rbind(res.cessation, all)
+rall <- rall %>% filter(year>=1730) %>% dplyr::select(start:plotby) %>% pivot_longer(mean:duration.post) %>% filter(!name %in% c("start.pre", "end.pre"))
+
+rall$x <- factor(rall$name, levels=c("mean", "max", "mean.pre", "min.pre", "duration", "duration.pre", "mean.post", "min.post", "duration.post"), labels=c("wet period concurrent with outbreak cessation", "wet period concurrent with outbreak cessation", "dry period prior to outbreak cessation", "dry period prior to outbreak cessation", "wet period concurrent with outbreak cessation", "dry period prior to outbreak cessation", "dry period following outbreak cessation","dry period following outbreak cessation","dry period following outbreak cessation"))
+rall$var <- factor(rall$name, levels=c("mean", "max", "mean.pre", "min.pre", "duration", "duration.pre", "mean.post", "min.post", "duration.post"), labels=c("mean JJA SC-PDSI", "extreme JJA SC-PDSI", "mean JJA SC-PDSI", "extreme JJA SC-PDSI", "duration (years)","duration (years)", "mean JJA SC-PDSI","extreme JJA SC-PDSI","duration (years)"))
+rall[is.infinite(rall$value)==TRUE,]$value <- NA
+results.timeperiod2 <- expand.grid(variable=na.omit(unique(rall$var)), period=na.omit(unique(rall$x)))
+results.timeperiod2$p.value <- NA
+results.timeperiod2$t <- NA
+for(j in na.omit(unique(rall$var))){
+  for(k in na.omit(unique(rall$x))){
+   rall.jk <-  rall %>%  filter(var==j & x ==k)
+   #rall.jk <- na.omit(rall.jk[,c("plotby", "value")])
+   t.jk <- t.test(rall.jk[rall.jk$plotby=="outbreak",]$value, rall.jk[rall.jk$plotby=="all years",]$value)
+   results.timeperiod2[results.timeperiod2$variable==j & results.timeperiod2$period==k, ]$t <-  round(t.jk$statistic,2)
+   results.timeperiod2[results.timeperiod2$variable==j & results.timeperiod2$period==k, ]$p.value <- round( t.jk$p.value,2)
+  }
+}
+results.timeperiod2$event <- "cessation"
+  
+
+rall$x <- factor(rall$x, levels=c("dry period prior to outbreak cessation","wet period concurrent with outbreak cessation","dry period following outbreak cessation"), labels=c("dry period prior\nto outbreak cessation","wet period concurrent\nwith outbreak cessation","dry period following\noutbreak cessation"), ordered=T)
+
+p4 <- rall %>% filter(var=="mean JJA SC-PDSI" & x %in% c("wet period concurrent\nwith outbreak cessation", "dry period following\noutbreak cessation")) %>%  ggplot(aes(x=plotby,y=value))+geom_boxplot()+geom_jitter(col="#0072B2", width=0.1, size=.5)+facet_wrap(~x, scales="free_y", nrow=1)+theme(axis.title.x = element_blank())+ylab("mean JJA SC-PDSI")
+p5 <- rall %>% filter(var=="extreme JJA SC-PDSI" & x %in% c("wet period concurrent\nwith outbreak cessation", "dry period following\noutbreak cessation")) %>%  ggplot(aes(x=plotby,y=value))+geom_boxplot()+geom_jitter(col="#0072B2",width=0.1, size=.5)+facet_wrap(~x, scales="free_y", nrow=1)+theme(axis.title.x = element_blank())+ylab("extreme JJA SC-PDSI")
+p6 <- rall %>% filter(var=="duration (years)" & x %in% c("wet period concurrent\nwith outbreak cessation", "dry period following\noutbreak cessation")) %>%  ggplot(aes(x=plotby,y=value))+geom_boxplot()+geom_jitter(col="#0072B2",width=0.1, size=.5)+facet_wrap(~x, scales="free_y", nrow=1)+theme(axis.title.x = element_blank())+ylab("duration (years)")+
+  scale_y_continuous( breaks=pretty_breaks())
+
+Fig.file <- here("Results", "Figures","outbreak-PDSIperiod.jpg")
+jpeg(Fig.file, width=7, height=5, units="in", res=300)
+p1+theme(axis.text.x=element_blank())+p4+theme(axis.title.y=element_blank(),axis.text.x=element_blank())+p2+p5+theme(axis.title.y=element_blank())+p3+p6+theme(axis.title.y=element_blank())+plot_layout(nrow=3)
+whatever <- dev.off() 
+
+period.cessation.mean <- rall %>% group_by(name,plotby) %>% summarize(mean=mean(value, na.rm=T))
+
+results.timeperiod <- rbind(results.timeperiod, results.timeperiod2) %>% filter(period %in% c("wet period concurrent with outbreak initiation", "dry period prior to outbreak initiation", "wet period concurrent with outbreak cessation", "dry period following outbreak cessation"))
+results.timeperiod <- results.timeperiod[,c("event", "period", "variable", "t", "p.value")]
+colnames(results.timeperiod) <- c("Event", "Period", "Variable", "t-statistic", "p-value")
+results.timeperiod <- results.timeperiod[,-1]
+```
+
+# Results
+
+## Outbreak reconstruction summary
+
+Using the combined tree-ring and geospatial datasets, we were able to reconstruct a total of `r outbreak.summary.tab %>% pull(no.outbreaks) %>% sum()` WSB outbreaks at `r outbreak.summary.tab %>% nrow()` sites (Table \@ref(tab:outbreaksummary); Figure \@ref(fig:FigOutbreakHistory)). The `r outbreak.summary.tab %>% nrow()` outbreak reconstructions have starting dates between 1637 and 1743 and ending dates between 2001 and 2020, with at least 50% of the site records extending to 1730. All outbreak events occurred prior to 1996 and thus appear only in the dendrochronological record. Most sites experienced about five outbreaks, however one site experienced two outbreaks, and two sites experienced eight outbreak events. Outbreak duration at a site ranged from `r host.outbreak.stats.df %>% pull(duration) %>% min()` to `r host.outbreak.stats.df %>% pull(duration) %>% max()` years, with an average outbreak at a given site lasting for `r outbreak.summary.tab %>% pull(dur) %>% min()` to `r outbreak.summary.tab %>% pull(dur) %>% max()` years. At the site-level the average quiescent period ranged from `r outbreak.summary.tab %>% pull(q) %>% min()` to `r outbreak.summary.tab %>% pull(q) %>% max()` years.
+
+```{r start landscape outbreaksummary}
+op_section <- prop_section(type = "continuous")
+block_section(op_section) # create section in landscape format
+```
+
+```{r outbreaksummary,  tab.cap='Summary of outbreak characteristics. The quiescent period length was calculated as the number of years between outbreak cessation and the initiation of a subsequent outbreak.', tab.id='outbreaksummary'}
+ft <- qflextable(outbreak.summary.tab.print)
+ft %>%  set_table_properties(layout = "autofit", width=1)
+```
+
+```{r end landscape outbreaksummary}
+close_section <- prop_section(
+    page_size = page_size(orient = "landscape"), 
+    type = "continuous")
+block_section(close_section) # end section in landscape format
+```
+
+```{r, FigOutbreakHistory, fig.cap="Variability of the self-calibrated Palmer Drought Severity Index (SC-PDSI) (A) and WSB outbreaks by site (B) and across the region (C). In panel (A) the thin black line shows a tree-ring based reconstruction of SC-PDSI, while the thick blue line shows a 10-year rolling mean of that time series. In C, the bars show the number of sites recording an outbreak and the dashed line shows the number of potential tree-ring recording sites. In all panels, periods of regional outbreak are highlighted by light gray shading.", fig.width=7, fig.height=5.5, results="show"}
+pdsi.out$PDSIroll <- rollapply(pdsi.out$AVG, align="center", width=10, FUN="mean", fill=NA)
+p1 <- ggplot(pdsi.out, aes(x=year, y=AVG))+geom_line()+geom_line(aes(y=PDSIroll, x=year), col="blue", linewidth=1.1)+ geom_rect(data=regional.outbreaks.sum, inherit.aes=FALSE, aes(ymin = -Inf, ymax = Inf, xmin = start, xmax = end), alpha = 0.2, fill = "gray20")+geom_hline(yintercept=0)+xlim(1666,2021)+ylab("SC-PDSI")
+
+p2 <- ggplot(host.outbreak.stats.df, aes(x=start, xend=end, y=SeriesCode, yend=SeriesCode))+geom_segment()+ylab("Site")+xlab("Year")+xlim(1666,2021)+ geom_rect(data=regional.outbreaks.sum, inherit.aes=FALSE, aes(ymin = -Inf, ymax = Inf, xmin = start, xmax = end), alpha = 0.2, fill = "gray20")
+
+p3 <- ggplot(regional.outbreaks, aes(x=year))+geom_bar(aes(y=noutbreaks), stat="identity",width=1)+geom_line(aes(y=nsites), linetype="dashed")+theme(legend.position = "bottom", legend.title = element_blank())+xlim(1666,2021)+ geom_rect(data=regional.outbreaks.sum, inherit.aes=FALSE, aes(ymin = -Inf, ymax = Inf, xmin = start, xmax = end), alpha = 0.2, fill = "gray20")+scale_y_continuous(name="number of sites",breaks=c(0,5,10))
+
+Fig.file <- here("Results", "Figures", "OutbreakHistory-Combo.jpg")
+jpeg(Fig.file, width=7, height=5.5, units="in", res=300)
+p1 + theme(axis.title.x = element_blank(), axis.text.x=element_blank())+ p2+ theme(axis.title.x = element_blank(), axis.text.x=element_blank()) +p3 +plot_layout(nrow=3, heights=c(0.9, 1.5, 0.9)) +plot_annotation(tag_levels = "A")
+whatever <- dev.off()
+
+
+knitr::include_graphics(here("Results", "Figures", "OutbreakHistory-Combo.jpg"))
+```
+
+## Synchrony of outbreaks
+
+We found that sites across the study area exhibited similar temporal patterns of WSB outbreak (Fig. \@ref(fig:FigOutbreakHistory) and Fig. S\@ref(fig:FigPercDefol)). Over the 1730-1998 period, time series of the percent of trees defoliated at a site were significantly correlated (W = `r kendalls.w %>% filter(subset=="1730-1998") %>% pull(W)`; p `r kendalls.w %>% filter(subset=="1730-1998") %>% pull(p.value)`; mean inter-site r~s~ = `r kendalls.w %>% filter(subset=="1730-1998") %>% pull(r.mean)`; mean inter-site C= `r round(peakz.mean[1],2)*100`%). However, relationships between some pairs of sites were neutral or even negative (range of. inter-site r~s~: `r kendalls.w %>% filter(subset=='1730-1998') %>% pull(r.min) %>% round(2)` - `r kendalls.w %>% filter(subset=='1730-1998') %>% pull(r.max) %>% round(2)`; range of inter-site C: `r peakz[[1]][-1][upper.tri(peakz[[1]][-1])] %>% min() %>% round(2)` - `r peakz[[1]][-1][upper.tri(peakz[[1]][-1])] %>% max() %>% round(2)`), highlighting site-level variation in outbreak dynamics across the study area (Fig. S\@ref(fig:FigPairwiseCor)). This site-level variation was in part explained by geographic proximity; we found that significant synchrony among time-series of the percent of trees defoliated existed at distances up to 50 km and that synchrony decreased with increasing distance (Fig. \@ref(fig:FigCovariance)).
+
+```{r FigCovariance, fig.cap="Nonparametric spatial covariance function describing the covariance among records of the percent of trees defoliated at all 12 sites across study area over the 1730-1998 period. Gray shading indicates the 95% confidence interval based on 1,000 bootstrap replications. The dashed horizontal line indicates the average correlation across the study area (regional synchrony).", fig.width=3.5, fig.height=2.4, results="show"}
+knitr::include_graphics(here("Results", "Figures", "FigCovariance.jpg"))
+```
+
+Multivariate event analysis indicated that both years of initiation and cessation were significantly clustered in time, with a higher degree of synchrony for cessation dates (Fig. \@ref(fig:FigMEA)). Years of outbreak initiation were more likely than not to occur within six years of another year of outbreak initiation, while years of outbreak cessation were more likely than not to occur within eight years of another year of outbreak cessation. At lags greater than 14 years, years of outbreak cessation were significantly asynchronous.
+
+```{r FigMEA, fig.cap="Bidirectional multivariate event analysis of temporal synchrony between dates of WSB outbreak initiation (A) and cessation (B) at 12 sites over the 1730-2020 period. The solid black line is the L(t) function, a transformation of Ripley’s K such that the mean and variance are stabilized through time t, where values >0 indicate synchrony and values <0 indicate asynchrony. The dashed lines indicate 95% confidence interval.", fig.width=3.5, fig.height=3.5,, results="show"}
+knitr::include_graphics(here("Results", "Figures", "MEA.jpg"))
+```
+
+## Outbreak dynamics for periods before and after Euro-American settlement
+
+We found that Euro-American settlement had little effect on outbreak dynamics or severity at the site-level, but reduced synchrony among sites. In the century prior to extensive Euro-American settlement, outbreaks occurred about as frequently but were slightly longer and more severe relative to the century following extensive Euro-American settlement (Fig. \@ref(fig:FigColonization)). However, these differences were not significantly different (Table S\@ref(tab:colonizationtab)).
+
+```{r FigColonization, fig.cap="The proportion of years affected by WSB outbreak (A), the duration of outbreak (B), the length of the quiescent period (C), the minimum normalized growth suppression index (D), and the duration of outbreak (E) for the century prior to and after extensive Euro-American colonization (1750-1849 and 1890-1989, respectively). In A, the sample sizes printed above bars show the number of total outbreaks recorded at any site during that period. For boxplots, the bottom and top limits of each box are the lower and upper quartiles, respectively; the thick black line within the box is the median; error bars equal ±1.5 times the interquartile range; and points denote outliers, values outside ±1.5 times the interquartile range.", fig.width=7, fig.height=2.5, results="show"}
+
+knitr::include_graphics(here("Results", "Figures", "Colonization.jpg"))
+```
+
+While outbreak dynamics and effects were similar in the two periods, regional synchrony was lower in the 1890-1989 period than the 1750-1849 period. A long quiescent period lacking regional outbreaks from 1925-1980 is a conspicuous feature of the period following Euro-American colonization (Fig. \@ref(fig:FigOutbreakHistory)). The mean inter-site correlation was `r round((spearmans.time$estimate[2]- spearmans.time$estimate[1])/spearmans.time$estimate[2] *100, 0)`% lower in the century following extensive Euro-American settlement (mean r~s~ for 1750-1859: `r round(spearmans.time$estimate[2], 2)` and mean r~s~ for 1890-1989: `r round(spearmans.time$estimate[1], 2)`; t=`r round(spearmans.time$statistic, 1)`, p=`r round(spearmans.time$p.value, 2)`) and the mean inter-site concurrency was `r round((peakz.time$estimate[2]- peakz.time$estimate[1])/ peakz.time$estimate[2]*100, 0)`% lower (mean C for 1750-1859: `r round(peakz.time$estimate[2], 3)` and mean C for 1890-1989: `r round(peakz.time$estimate[1], 2)`; t=`r round(peakz.time$statistic, 1)`, p\<0.001). While regional synchrony was lower in the 1890-1989 period, spline correlograms calculated for the 1750-1849 and 1890-1989 periods showed similar decreases in synchrony with increasing distances as the 1750-1998 period (Fig. S\@ref(fig:FigCovarianceTime)).
+
+## Association between interannual climate variability and outbreaks
+
+Over the 1730-2020 time span, we found periods of outbreak were associated with interannual variability in drought severity (Figure \@ref(fig:FigOutbreakHistory)). During periods of regional outbreak, the mean SC-PDSI was greater (i.e., wetter) than during quiescent periods (mean SC-PDSI~outbreak~ = `r xt$estimate[1] %>% signif(2)`; mean SC-PDSI~quiescent~ = `r xt$estimate[2] %>% signif(2)`; t = `r xt$statistic %>% round(2)`; p = `r xt$p.value %>% round(3)`). These results were supported by superposed epoch analyses conducted using the regional record (Fig. \@ref(fig:FigSEARegional)). Here we found that outbreaks were generally more likely to initiate during periods of above-average moisture availability. The cessation of regional outbreak generally coincided with a switch from above average moisture availability to average or below average moisture availability (Fig. \@ref(fig:FigSEARegional)).
+
+```{r FigSEARegional, fig.cap="Superposed epoch analysis results illustrating the departure from the mean SC-PDSI for the years prior, during, and following regional outbreak years over the 1730-2020 period. Descending bars illustrate a negative association with summer SC-PDSI (i.e., drier conditions), ascending bars show a positive association with summer SC-PDSI (i.e., wetter conditions).", fig.width=3.5, fig.height=3, results="show"}
+ 
+knitr::include_graphics(here("Results", "Figures", "SEA-Regional.jpg"))
+```
+
+At the site-level, superposed epoch analyses confirmed that outbreaks were generally more likely to initiate during periods of positive SC-PDSI and end when moisture became more limiting (Fig. \@ref(fig:FigSEASiteCombo)). Additionally, site-level analyses suggested that initiation was often proceeded by periods of drought (Fig. \@ref(fig:FigSEASiteCombo)A).
+
+```{r FigSEASiteCombo, fig.cap="Summary of site-level superposed epoch analyses summarizing the association between summer SC-PDSI and outbreak initiation (A) and cessation (B) over the 1730-2020 period. Red descending bars illustrate the number of sites with a statistically significant negative association with summer SC-PDSI (i.e., drier conditions), blue ascending bars show the number of sites with a statistically significant positive association with summer SC-PDSI (i.e., wetter conditions).", fig.width=3.5, fig.height=3, results="show"}
+
+knitr::include_graphics(here("Results", "Figures","SEA-combo-site.jpg"))
+```
+
+Finally, we found that the initiation of regional outbreak generally coincided with periods of above average moisture availability that were longer and more extreme (Fig. \@ref(fig:FigPDSIperiod); Table S\@ref(tab:PDSIperiodtab)). Specifically, we found that regional outbreak initiation coincided with periods of above average moisture availability that were on average `r period.initiation.mean  %>% filter(name=="duration" &plotby=="outbreak") %>% pull(mean) %>% round(1) - period.initiation.mean  %>% filter(name=="duration" &plotby=="all years") %>% pull(mean) %>% round(1)` years longer than the average period (p = `r results.timeperiod %>% filter(Period=="wet period concurrent with outbreak initiation" & Variable=="duration (years)") %>% pull("p-value")`; t= `r results.timeperiod %>% filter(Period=="wet period concurrent with outbreak initiation" & Variable=="duration (years)") %>% pull("t-statistic")`). The maximum SC-PDSI during periods of above average moisture availability that coincided with outbreak initiation was on average `r (period.initiation.mean  %>% filter(name=="max" &plotby=="outbreak") %>% pull(mean)  / period.initiation.mean  %>% filter(name=="max" &plotby=="all years") %>% pull(mean)) %>% round(1)`x greater than the average period (p = `r results.timeperiod %>% filter(Period=="wet period concurrent with outbreak initiation" & Variable=="extreme JJA SC-PDSI") %>% pull("p-value")`; t = `r results.timeperiod %>% filter(Period=="wet period concurrent with outbreak initiation" & Variable=="extreme JJA SC-PDSI") %>% pull("t-statistic")`). Outbreak initiation was also generally proceeded by drought events that were longer and more severe, however these differences were not significant (Fig. \@ref(fig:FigPDSIperiod); Table S\@ref(tab:PDSIperiodtab)). Similarly, we found no significant relationships between outbreak cessation and attributes of concurrent wet periods or subsequent dry periods.
+
+```{r FigPDSIperiod, fig.cap="Climate conditions in the dry period prior and wet period coincident with periods of regional outbreak relative to all periods of above average moisture availability.", fig.width=7, fig.height=5, results="show"}
+knitr::include_graphics(here("Results", "Figures","outbreak-PDSIperiod.jpg"))
+```
+
+# Discussion
+
+Here we combined tree-ring and geospatial data to reconstruct periods of WSB outbreak at 12 sites across northern to central Colorado. We used this data to test the overarching hypothesis that the effects of land use and climate variability on trees are important drivers of WSB outbreaks dynamics. Our results support this hypothesis, adding to a growing number of empirical studies that demonstrate the potential for human actions to alter the dynamics of insect outbreaks [@ciesla2015RoleHumanActivities]. We show: (1) WSB outbreaks occur synchronously across sites, suggestive of the combined effects of density-dependent processes and Moran effects; (2) changes in forest communities driven by Euro-American settlement altered synchronicity of outbreaks; (3) outbreaks were often initiated by long periods of increased moisture availability that were often proceeded by periods of drought.
+
+## Outbreak histories
+
+We found that periods of regional outbreak occurred from 1761 to 1770, 1792 to 1800, 1833 to 1844, 1890 to 1894, 1897 to 1908, 1920 to 1924, and 1986 to 1990. Notably, all of these periods correspond with periods of outbreak identified in dendroecological studies from Colorado (Table S\@ref(tab:historytab)). Further the 1980s outbreak is well documented in observational records from Colorado [@hadleyStandResponseWestern1993; @weber1995DendroecologicalReconstructionWestern] and the 1920s outbreak and is supported by reports from forest entomologists working in northern Idaho and Yellowstone National Park, where observational records of WSB outbreaks began much earlier than in Colorado [@johnson1975OutbreaksWesternSpruce]. This agreement between existing tree-ring and observational records confirms that tree-ring data can provide insights into periods of past WSB outbreak, as has been previously reported [@swetnam1989].
+
+Across all our sites the mean outbreak duration (`r host.outbreak.stats.df %>% pull(duration) %>% mean() %>% round(1)` years) and mean length of the quiescent period (`r host.outbreak.stats.df %>% pull(q) %>% mean(na.rm=T) %>% round(1)` years) were similar to those previously reported in dendroecological studies conducted in interior Pacific Northwest (mean duration: 12 years; mean quiescent interval: 15 years) [@flower2014], the Colorado Front Range (mean duration: 6.9 years) [@weber1995DendroecologicalReconstructionWestern], and southern British Columbia (mean duration: 12 years; mean quiescent interval: 29 years) [@campbell2006MulticenturyHistoryWestern]. However, outbreaks in our record were notably shorter and quiescent periods were longer than in dendroecological records from northern New Mexico (mean duration: 22 years; mean quiescent interval: 11 years) [@swetnam1993] and central British Columbia (mean: 18 years) [@harvey2018]. These differences likely reflect variation in tree-ring data collection and processing methods, but also highlight the need for more research that addresses the drivers of outbreak dynamics in space and time, as well as the need for infrastructure for sharing dendroecological data and research that integrates multiple studies.
+
+## Inter-site synchrony
+
+We found that WSB outbreaks occur synchronously across northern to central Colorado, consistent with previous dendroecological research that has identified synchrony across sites in the Interior Pacific Northwest [@flower2014; @ellisMulticenturyDendrochronologicalReconstruction2017]. For population of irruptive insects, temporal synchrony may arise from density-dependent processes (e.g., dispersal, predation) and/or Moran effects [@moran1953StatisticalAnalsisCanadian], where spatial autocorrelation in exogenous drivers, such as climate, leads to synchronicity [@liebhold2004WithinpopulationSpatialSynchrony]. Here we found that both regional synchrony (`r Regional.synch %>% filter(years=="1730-1998" & dataset=="defoliated") %>% pull(synchrony) %>% round(2)`) and the spatial scale at which synchrony was statistically significant (≤50 km) were lower than we would expect if climate was the only driver. For instance, across the 12 drought-sensitive ponderosa pine chronologies used to remove climate-trends in host ring-width series, we calculated greater regional synchrony (`r Regional.synch %>% filter(years=="1730-1998" & dataset=="RWI") %>% pull(synchrony) %>% round(2)`) and significant correlations at larger distances (i.e., up to 100 km; Fig. S\@ref(fig:FigCovarianceNonHost)). This supports previous research on spatiotemporal patterns of contemporary WSB outbreak in British Columbia that has suggested that dispersal is key in driving the synchronization of WBS population dynamics [@senfMultiscaleAnalysisWestern2017]. Our records also show that outbreaks can develop concurrently in disjunct populations. For instance, evidence of the 1790s outbreak appears in the tree-ring record first in ca. 1784 at the TI site, the furthest north and west site in our dataset, and the WR site, which is east of the Continental Divide in the southern Front Range. While budworms are strong fliers that can dispersing hundreds of kilometers in the right weather conditions [@greenbank1980SPRUCEBUDWORMLEPIDOPTERA; @willhite1983GeneticVariationWestern; @sturtevant2013LongdistanceDispersalSpruce], most dispersal occurs at much shorter distances (i.e., \<15 km) [@senfMultiscaleAnalysisWestern2017]. Thus both dispersal and Moran effects are likely important in driving the synchrony of local populations of WSBs [@senfMultiscaleAnalysisWestern2017; @flower2014].
+
+## Effects of Euro-American colonization on outbreak dynamics
+
+We found that outbreak duration, frequency, and severity were comparable during the century prior to and following Euro-American colonization, but inter-site synchrony was lower in the 20th century. The lower inter-site synchrony in part reflects the 1925-1980 quiescent period present in the regional record. These findings suggest that Euro-American colonization may have initially caused a period of decreased synchrony that followed by a period of increased or similar synchrony at the end of the 20th century, as has previously been reported for the Southwest [@swetnam1993]. This pattern is hypothesized to occur due to changes in landscape-level availability of host trees, which may influence WSB outbreak dispersal and thus spatiotemporal patterns of outbreak [@senfMultiscaleAnalysisWestern2017]. Across our study area, initial logging and burning reduced host availability in the early 20th century [@veblen1991ColoradoFrontRange], but subsequent forest regeneration and fire suppression may have promoted increased host abundance by the end of the 20th century [@veblen2000]. Collectively, these findings show that human land-use practices may influence WSB outbreak dynamics, and that understanding landscape history is critical to predicting these effects.
+
+## Climate effects on outbreak dynamics
+
+Our 300 year record shows that WSB outbreaks were more likely to occur during periods of above average moisture availability, consistent with the expectation that greater moisture availability increases forage palatability and availability thereby increasing insect population growth rates [@price1991PlantVigorHypothesis]. Here we document higher PDSI values during years of outbreak, consistent with previous dendroecological research from the Southwest [@swetnam1993; @ryersonTreeringReconstructionWestern2003]. We also show that outbreak initiation tended to co-occur with the start of periods of above average moisture availability, as has been reported in the Pacific Northwest [@flower2014; @ellisMulticenturyDendrochronologicalReconstruction2017]. Additionally, we show that across our study area regionally synchronous outbreaks were more likely to occur when periods of increased moisture availability were longer and more extreme. These findings highlight the importance of considering cumulative effects of climate variability on ecological systems [@hartmann2018ResearchFrontiersImproving].
+
+Our analyses provide mixed support for the idea that drought proceeds WSB outbreaks. Collectively site-level analyses suggested a significant relationship existed between outbreak initiation and drought at in the proceeding one to five years, as has been previously reported in the Pacific Northwest [@flower2014; @ellisMulticenturyDendrochronologicalReconstruction2017]. The variation in the timing of the inciting drought may emerge due to density-dependent processes and/or a lagged effect of defoliation on radial growth, which may occur because trees can use previously stored carbon for growth [@richardson2015DistributionMixingOld]. Indeed, dendroecological studies of ongoing outbreaks show that the effect of defoliation on radial growth often lag defoliation by one to three years [@alfaroTreeMortalityRadial1982; @swetnam1985].
+
+While site-level analyses suggested that drought may play a role in outbreak initiation, drought was not significantly associated with outbreak initiation at the regional-scale. Here we found that at 95% confidence level, outbreak initiation was favored by drought at four sites, whereas increased moisture availability was associated with outbreak initiation at eight sites. This variable effect of drought on outbreak initiation may exist because the drought sensitivity of the WSB-Douglas fir system varies [@harvey2018; @xuDroughtMoistureAvailability2019]. Such variation has been hypothesized to occur for two alternative reasons. First, populations of Douglas fir from drier locations may be better adapted to dealing with drought [@bansal2015ClimaterelatedGeneticVariation]. So at arid locations, droughts may need to be more extreme in order to drive increases in nutritional quality, as has been suggested in dendroecological analyses comparing WSB outbreak histories at sites adjacent to grasslands and more mesic sites in interior British Columbia [@harvey2018]. Alternatively, the chronic moisture stress experienced by populations of Douglas fir from drier locations may constrain any potential positive effects of drought on nutritionally quality [@xuDroughtMoistureAvailability2019]. Future research is necessary to understand how drought may influence WBS-outbreaks across gradients of aridity.
+
+Finally, here we assessed the effect of climate variability on WSB outbreak dynamics using summer SC-PDSI, which is highly correlated with other climate variables (Fig. S\@ref(fig:FigPDSIxClimateVar), many of which may also influence WSB outbreak dynamics [@nealis2021EcologyOutbreakPopulations]. For instance, in the WSB-Douglas fir system, drought commonly co-occurs with warm spring temperatures, which may positively affect WSB population growth rates by limiting mortality due to freezing of destruction of food supplies [@fellinWesternSpruceBudworm1982; @regniereInfluenceTemperatureHistoric2019]. Thus, the positive effect of drought on outbreak initiation identified here may in part reflect the positive effects of warm spring temperatures. Further, exceptionally warm spring temperatures may actually negatively affect WSB populations by altering the synchrony of WSB larval emergence and the timing of host tree bud burst [@chenMechanismsDouglasfirResistance2001; @nealisPhenologicalWindowWestern2012; @regniereInfluenceTemperatureHistoric2019].
+
+# Implications
+
+This study highlights the role of broad-scale drivers in WSB outbreak dynamics, which has several important implications for understanding the ecology and management of WSB outbreak dynamics. First, forest management practices aimed at mitigating the effects of WSB, must consider landscape and regional processes. Here we attribute the early to mid 1900s quiescent period in our regional WSB record to a regional reduction in host availability due to Euro-American settlement practices. From this we suggest that efforts aimed at increasing stand resistance to outbreak should consider reducing WSB hosts in the surrounding landscape by emulating natural disturbance processes that promote heterogeneity at multiple scales [@derose2014ResistanceResilienceConceptual; @windmuller-campione2021LandscapeScaleDriversResistance]. Second, we find that outbreaks were strongly linked to regional climate variability. Consequently future changes in climate, which are forecasted to increases in the intensity and frequency of drought across the Southwest [@usgcrp2023FifthNationalClimate], are likely to alter spatial and temporal patterns of WSB outbreak. Further, the effects of climate change on WSB outbreak dynamics are likely to vary across Douglas-fir's distribution. Collectively this highlights the need for forest managers to plan for uncertainty by adopting adaptive management practices [@millar2016ClimateChangeForests].
+
+# Acknowledgements
+
+This research was supported the USDA National Institute of Food and Agriculture, McIntire-Stennis project COL00520, accession number 7002894. Additionally, we would like to the thank Colorado State University and the Colorado Mountain Club for supporting O. Santiago. For research assistance we thank L. Daniels, K. Farley, M. Gonzalez, S. Shimek, and J. Smith.
+
+# References
+
+::: {#refs}
+:::
+
+\pagebreak
+
+# Supplementary Material {#SuppMat}
+
+## Appendix A
+
+```{r hostmeta, tab.id="hostmeta", tab.cap="Chronology statistics for host sites.", tab.lp="supp-tab",tab.cap.pre="Table S"}
+host.meta.sub.print <- host.meta.sub[,c("SeriesCode", "SiteName", "nseries", "interrbar", "interrbar.sd", "ar1bar", "ar1bar.sd")]
+host.meta.sub.print <- host.meta.sub.print %>% mutate_at(vars(interrbar:ar1bar.sd), ~round(., 2))
+
+host.meta.sub.print <-host.meta.sub.print %>% tidyr::unite("Interseries r", interrbar:interrbar.sd, sep="\n(sd=")
+host.meta.sub.print$"Interseries r" <- paste0(host.meta.sub.print$"Interseries r" , ")")
+
+host.meta.sub.print <-host.meta.sub.print %>% tidyr::unite("Autocorrelation", ar1bar:ar1bar.sd, sep="\n(sd=")
+host.meta.sub.print$"Autocorrelation" <- paste0(host.meta.sub.print$"Autocorrelation" , ")")
+
+host.meta.sub.print <- host.meta.sub.print[,c("SeriesCode", "SiteName", "nseries", "Interseries r", "Autocorrelation")]
+
+colnames(host.meta.sub.print)<- c("Site ID", "Site Name", "No.\nSeries", "Interseries\ncorrelation", "Autocorrelation")
+host.meta.sub.print$Reference <- c("")
+
+ft <- flextable(host.meta.sub.print) 
+ft %>% autofit() %>% fit_to_width(7.5)
+```
+
+\pagebreak
+
+```{r start landscape}
+op_section <- prop_section(type = "continuous")
+block_section(op_section) # create section in landscape format
+```
+
+```{r nonhostmeta, tab.id="nonhostmeta", tab.cap="Site and chronology statistics for nonhost sites.", tab.lp="supp-tab",tab.cap.pre="Table S"}
+nonhost.meta.sub.print <- nonhost.meta.sub[,c("SeriesCode", "SiteName", "Lat", "Lon", "EarliestYr", "LatestYr", "nseries", "interrbar", "interrbar.sd", "ar1bar", "ar1bar.sd", "Citation")]
+nonhost.meta.sub.print <- nonhost.meta.sub.print %>% mutate_at(vars(Lat:Lon), ~round(., 3))
+nonhost.meta.sub.print <- nonhost.meta.sub.print %>% mutate_at(vars(interrbar:ar1bar.sd), ~round(., 2))
+
+nonhost.meta.sub.print <-nonhost.meta.sub.print %>% tidyr::unite("Years", EarliestYr:LatestYr, sep="-")
+
+nonhost.meta.sub.print <-nonhost.meta.sub.print %>% tidyr::unite("Interseries r", interrbar:interrbar.sd, sep="\n(sd=")
+nonhost.meta.sub.print$"Interseries r" <- paste0(nonhost.meta.sub.print$"Interseries r" , ")")
+
+nonhost.meta.sub.print <-nonhost.meta.sub.print %>% tidyr::unite("Autocorrelation", ar1bar:ar1bar.sd, sep="\n(sd=")
+nonhost.meta.sub.print$"Autocorrelation" <- paste0(nonhost.meta.sub.print$"Autocorrelation" , ")")
+
+nonhost.meta.sub.print <- nonhost.meta.sub.print[,c("SeriesCode", "SiteName", "Lat", "Lon", "Years", "nseries", "Interseries r", "Autocorrelation", "Citation")]
+
+nonhost.meta.sub.print$Citation <- c("Woodhouse and Brown (2002)","Woodhouse and Losleben (2006)", "Woodhouse et al. (2015)", "Woodhouse et al. (2006b)", "Woodhouse et al. (2006a)", "Woodhouse et al. (2010)", "Woodhouse et al. (2019a)", "Graybill (2002a); Woodhouse et al. (2006c)", "Veblen et al. (2000)", "Graybill (2002b); Veblen et al. (2000)", "Graybill (2002c); Woodhouse et al. (2019b)", "Graybill (1997); Woodhouse and Lukas (2010)")
+
+colnames(nonhost.meta.sub.print)<- c("Site ID", "Site Name", "Latitude\n(degrees)", "Longitude\n(degrees)", "Chronology\nlength\n(years)" , "No.\nSeries", "Interseries\ncorrelation", "Autocorrelation", "Reference")
+
+ft <- qflextable(nonhost.meta.sub.print) 
+ft %>% set_table_properties(layout = "autofit", width=1)
+```
+
+```{r end landscape}
+close_section <- prop_section(
+    page_size = page_size(orient = "landscape"), 
+    type = "continuous")
+block_section(close_section) # end section in landscape format
+```
+
+```{r colonizationtab, tab.id="colonizationtab", tab.cap="Summary of modelling results testing the effect of Euro-Americans on WSB outbreak dynamics and ecological effects.", tab.lp="supp-tab",tab.cap.pre="Table S"}
+
+colnames(colonization.results) <- c("Response", "Coefficient", "p value")
+ft <- flextable(colonization.results) 
+ft %>% flextable::align(j=-1, align = "center", part = "all") %>% autofit() %>% fit_to_width(7.5) 
+```
+
+<br>
+
+```{r PDSIperiodtab,  tab.id="PDSIperiodtab", tab.cap="Results of t-tests comparing the climate conditions in the dry period prior and wet period coincident outbreak initiation with all periods of above average moisture availability.", tab.lp="supp-tab",tab.cap.pre="Table S"}
+results.timeperiod %>% as.data.frame() %>%  flextable()  %>% autofit() %>% fit_to_width(7.5) 
+```
+
+\pagebreak
+
+```{r historytab, tab.id="historytab", tab.cap="Published periods of WSB outbreak in Colorado.", tab.lp="supp-tab",tab.cap.pre="Table S"}
+
+history.tab <- read_excel(here("Documents", "PublishedOutbreakHistory.xlsx"), sheet=1, col_types="text") 
+
+colnames(history.tab) <- c("Start", "End", "Duration\n(years)", "Study area", "Source")
+
+history.tab %>% as.data.frame() %>% flextable() %>% autofit() %>% fit_to_width(7.5) 
+```
+
+\pagebreak
+
+```{r FigPercDefol, fig.id="FigPercDefol",fig.cap="Site-level outbreak records expressed as the percent of trees recording an infestation.", fig.cap.pre="Figure S", fig.lp="supp-fig", fig.width=4.48, fig.height=6.5}
+knitr::include_graphics(here("Results", "Figures", "Fig-PercentDefoliated.jpg"))
+```
+
+\pagebreak
+
+```{r FigPairwiseCor, fig.id="FigPairwiseCor",fig.cap="Pairwise Spearman's correlation between time series of the percent of trees defoliated at each site.", fig.cap.pre="Figure S", fig.lp="supp-fig", fig.width=4.48, fig.height=3}
+knitr::include_graphics(here("Results", "Figures", "Fig-PairwiseCorrelation.jpg"))
+```
+
+```{r FigCovarianceNonHost, fig.id="FigCovarianceNonHost", fig.cap="Nonparametric spatial covariance function describing the covariance among the 12 drought-sensitive ponderosa pine chronologies used to reconstruct WSB histories. Gray shading indicates the 95% confidence interval based on 1,000 bootstrap replications. The dashed horizontal line indicates the average correlation across the study area (regional synchrony)", fig.cap.pre="Figure S", fig.lp="supp-fig", fig.width=3.5, fig.height=2.4}
+if(!file.exists(here("Results", "Figures", "FigCovariance-Nonhost.jpg"))){
+  ts.crn <- function(x){return(ts(x$res, start=min(as.numeric(row.names(x))), end=max(as.numeric(row.names(x)))))}
+  nonhost.crns.ts <- do.call(cbind,lapply(nonhost.crns, ts.crn))
+  nonhost.crns.df <- as.data.frame(window(nonhost.crns.ts, start=1730, end=1998))
+  nonhost.crns.df <- nonhost.crns.df[,colnames(nonhost.crns.df)%in%nonhost.meta.sub$SeriesCode]
+  nonhost.crns.sites.sub <- st_as_sf(x = nonhost.meta.sub, 
+  coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(26913)
+
+  z <- t(nonhost.crns.df)
+  sncf.nonhost <- Sncf(x=st_coordinates(nonhost.crns.sites.sub)[,1], y=st_coordinates(nonhost.crns.sites.sub)[,2], z, resamp = 1000, na.rm=T, quiet=T)
+  
+  sncf.nonhost.res <- data.frame(x=sncf.nonhost$real$predicted$x[1,], y=sncf.nonhost$real$predicted$y[1,], upper=sncf.nonhost$boot$boot.summary$predicted$y[10,], lower=sncf.nonhost$boot$boot.summary$predicted$y[2,])
+  
+  sncf.plot.nonhost <- ggplot(sncf.nonhost.res, aes(x=x/1000, y=y))+geom_ribbon(aes(ymin=lower, ymax=upper), fill="lightgray")+geom_line(col="blue")+xlim(0,100)+ylim(-0.5,1)+geom_abline(intercept = 0, slope = 0) +geom_abline(intercept = summary(sncf.nonhost)$Regional.synch, slope = 0, linetype = "dashed") +labs(x="distance (km)", y= "covariance")
+  
+  Fig.file <- here("Results", "Figures", "FigCovariance-Nonhost.jpg")
+  jpeg(Fig.file, width=3.5, height=2.4, units="in", res=300)
+  sncf.plot.nonhost
+  whatever <- dev.off()
+}
+
+knitr::include_graphics(here("Results", "Figures", "FigCovariance-Nonhost.jpg"))
+```
+
+<br>
+
+```{r FigCovarianceTime, fig.id = "FigCovarianceTime", fig.cap="Nonparametric spatial covariance function describing the variance correlation among time series of the percent of trees defoliated at site for the 1730-1998 and the centuries prior to and following  extensive Euro-American settlement (1750-1848 and 1890-1989, respectively). Gray shading indicates the 95% confidence interval based on 1,000 bootstrap replications. The dashed horizontal line indicates the average correlation across the study area (regional synchrony)", fig.width=7, fig.height=3, fig.cap.pre="Figure S", fig.lp="supp-fig"}
+knitr::include_graphics(here("Results", "Figures", "FigCovariance-Multi.jpg"))
+```
+
+\pagebreak
+
+```{r FigPDSIxClimateVar,fig.id = "FigPDSIxClimateVar", fig.cap="The correlation between regional time series of summer SC-PDSI and monthly total precipitation (PPT), mean daily temperature (TMEAN),  and maximum daily vapor  pressure deficit (VPD) (1895-2022).", fig.cap.pre="Figure S", fig.lp="supp-fig", fig.width=3.5, fig.height=3.5}
+prism.JJA <- read.csv(here("Data", "prism-JJA.csv"))
+prism.JJA$AVG <- rowMeans(prism.JJA[, as.character(host.meta.sub$SeriesCode)])
+prism.tmean <- read.csv(here("Data", "prism-tmean.csv"))
+prism.tmean$AVG <- rowMeans(prism.tmean[, as.character(host.meta.sub$SeriesCode)])
+
+prism.ppt <- read.csv(here("Data", "prism-ppt.csv"))
+prism.ppt$AVG <- rowMeans(prism.ppt[, as.character(host.meta.sub$SeriesCode)])
+prism.vpdmax <- read.csv(here("Data", "prism-vpdmax.csv"))
+ prism.vpdmax$AVG <- rowMeans(prism.vpdmax[, as.character(host.meta.sub$SeriesCode)])
+
+
+res <- data.frame(variable="TMEAN", month=1:12, r=NA,t=NA, p=NA)
+for(j in 1:12){
+  x <- cor.test(prism.JJA$AVG, prism.tmean[prism.tmean$month==j & prism.tmean$year %in% prism.JJA$X,]$AVG)
+  res[res$month==j, ]$r <- x$estimate
+  res[res$month==j, ]$t <- x$statistic
+  res[res$month==j, ]$p <- x$p.value
+}
+res.tmean <- res
+
+res <- data.frame(variable="PPT", month=1:12, r=NA,t=NA, p=NA)
+for(j in 1:12){
+  x <- cor.test(prism.JJA$AVG, prism.ppt[prism.ppt$month==j & prism.ppt$year %in% prism.JJA$X,]$AVG)
+  res[res$month==j, ]$r <- x$estimate
+  res[res$month==j, ]$t <- x$statistic
+  res[res$month==j, ]$p <- x$p.value
+}
+res.ppt <- res
+
+res <- data.frame(variable="VPD", month=1:12, r=NA,t=NA, p=NA)
+for(j in 1:12){
+  x <- cor.test(prism.JJA$AVG, prism.vpdmax[prism.vpdmax$month==j & prism.vpdmax$year %in% prism.JJA$X,]$AVG)
+  res[res$month==j, ]$r <- x$estimate
+  res[res$month==j, ]$t <- x$statistic
+  res[res$month==j, ]$p <- x$p.value
+}
+res.vpd <- res
+
+res <- rbind(rbind(res.tmean, res.ppt), res.vpd)
+  
+Fig.file <- here("Results", "Figures", "PDSIxTMEAN.jpg")
+jpeg(Fig.file, width=3.5, height=3.5, units="in", res=300)
+ ggplot(res, aes(x=factor(month), y=r, fill=variable))+geom_bar(stat="identity", position="dodge") +xlab("month")+ylab("correlation")+theme(legend.title=element_blank(),legend.position = 'bottom')+ylim(-0.5, 0.5)+scale_fill_manual(values=c('#0072B2', '#DC3220', 'gray'))
+whatever <- dev.off() 
+
+knitr::include_graphics(here("Results", "Figures", "PDSIxTMEAN.jpg"))
+```
+
+\pagebreak
+
+[@woodhouse2002NOAAWDSPaleoclimatology; @woodhouse2006NOAAWDSPaleoclimatologyb; @woodhouse2015NOAAWDSPaleoclimatology; @woodhouse2006NOAAWDSPaleoclimatology; @woodhouse2006NOAAWDSPaleoclimatologya; @woodhouse2010NOAAWDSPaleoclimatology; @woodhouse2019NOAAWDSPaleoclimatology; @woodhouse2006NOAAWDSPaleoclimatologyc; @graybill2002NOAAWDSPaleoclimatology; @veblen2000; @graybill2002NOAAWDSPaleoclimatologya; @graybill2002NOAAWDSPaleoclimatologyc; @woodhouse2019NOAAWDSPaleoclimatologya; @graybill1997NOAAWDSPaleoclimatology; @woodhouse2010NOAAWDSPaleoclimatologya

@@ -1,5 +1,0 @@
-Site,Raw.file,Crossdated.file,Species,Easting,Northing,Lat,Long,Elevation,Aspect,No.Trees,No.Cores,Crossdating.notes,Notes
-North Inlet,NI_Pm.rwl,-9999,PSME,-9999,-9999,40.27536637,-105.7763456,2770,-9999,20,27,"overall weak to low relationship with co050.rwl, very weak with 8ppres.crn, no relationship with co521.rwl.  Micro-climatic site conditions may be overriding regional climate patterns, but since the other two chronologies had very few missing rings most of these cores are probably correctly dated as well. ","Although straws are labelled as NI (the broader area is North Inlet), the cores in this file are from Summerland Park."
-Summerland Park,SP_Pm.rwl,SP_PmFin.rwl,PSME,-9999,-9999,40.26418611,-105.7910361,2581,-9999,18,32,"overall very good relationship to 8ppres.crn, co050.crn","Location is Polygon No. 6432 in the ROMO veg map we used in 2000.   Approx lat is
-40�15'51.07""N and long 105�47'27.73""W."
-Wild Basin,WB_Pm.rwl,WB_PmFin.rwl,PSME,-9999,-9999,40.20932,-105.55018,-9999,-9999,18,28,overall good relationship with most cores to 8ppres.crn,coordintes estimated based on romo veg polygon and description

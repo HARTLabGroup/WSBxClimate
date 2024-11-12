@@ -1,46 +1,24 @@
-# *Code for: *
+# *Code for:*
 
 ## Description of the project
 
-This repository contains all code for **.
+This repository contains all code for \*\*.
 
 ## Organization of the project
 
 The project has the following structure:
 
--   [Code](https://github.com/HARTLabGroup/AspenHabitat/tree/base/Code): All code written for this project
+-   Code: All code written for this project
 
-    -   [AspenHabitat-Highlights.Rmd](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-Highlights.Rmd): An R markdown file that generates a Microsoft Word document wit the project highlights.
+    -   Template.docx: A Microsoft Word document used to a style template for generating the main text file.
 
-    -   [AspenHabitat-Highlights.docx](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-Highlights.docx): A Microsoft Word document wit the project highlights.
+    -   references.bib: A BibTeX file containing all information for all references used in the project
 
-    -   [AspenHabitat-MainText.Rmd](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-MainText.Rmd): An R markdown file with most of the R code. This file also generates a Microsoft Word document with the main text of the manuscript.
-
-    -   [AspenHabitat-MainText.docx](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-MainText.docx): A Microsoft Word document with the main text of the manuscript.
-
-    -   [AspenHabitat-Supplement.Rmd](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-Supplement.Rmd): An R markdown with code for some supplemental analyses.
-
-    -   [AspenHabitat-Supplement.docx](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-Supplement.docx): A Microsoft Word document with supplemental figures and tables.
-
-    -   [GIDS-Downscaling-SJH.R](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/GIDS-Downscaling-SJH.R): An R file that performs a multi-step procedure that spatially downscales gridded climate data using GIDS (Gradient and Inverse Distance-Squared) of Nalder and Wein (1998) and Flint and Flint (2012). It was lightly modified from code written by Rodman et al. (2020).
-
-    -   [Template.docx](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/Template.docx): A Microsoft Word document used to a style template for generating AspenHabitatModelling.docx
-
-    -   [references.bib](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/references.bib): A BibTeX file containing all information for all references used in the project
-
--   [Documents](https://github.com/HARTLabGroup/AspenHabitat/tree/base/Documents): All code written for this project
-
-    -   [ODMAP-Table.xlsx](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Documents/ODMAP-Table.xlsx): Documentation of the species distribution modeling methods used herein following standard protocols outlined by Zurell et al.
-        (2020) 
-    -   [PredictorScreeningTable.xlsx](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Documents/PredictorScreeningTable.xlsx){.uri}: A table containing predictors screened for inclusion in the models.
-
--   Figures: Any figures that were not generated from the provided code
-
-    -   StudyArea.jpg: A map of the study area generated in [QGIS](https://www.qgis.org/).
+-   Documents:
 
 -   .gitignore
 
--   AspenHabitat.Rproj
+-   WSBxClimate.Rproj
 
 -   CITATION.cff
 
@@ -48,36 +26,20 @@ The project has the following structure:
 
 -   README.md
 
--   citationstyle.csl : A [Citation Style Language](https://citationstyles.org/) file used to format references in the main text of AspenHabitatModelling.docx
+-   citationstyle.csl : A [Citation Style Language](https://citationstyles.org/) file used to format references in the main text file.
 
 ## Description of Analyses and Data
 
 ### Code
 
-Nearly all analyses are can be run from the script [AspenHabitat-MainText.Rmd](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-MainText.Rmd), which references the [GIDS-Downscaling-SJH.R](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/GIDS-Downscaling-SJH.R) script. Supplemental analyses are included in the script [AspenHabitat-Supplement.Rmd](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-Supplement.Rmd). All scripts use relative paths with the .rproj file and the "here" package in R to reference each of the datasets and use them in analyses. To repeat our analyses, this project must be open in R Studio software prior to opening the .rmd document.
-
 ### Input data
-
-All input data is publicly available. The main script is structured to download all data from the internet, however we acknowledge that broken URLs are a common issue. Additional users should take note that the code is structured to download data only once. Thus care should be taken when users are interested in replacing input datasets with updated versions. The best approach is to delete the entire directory where the data is stored.
-
-### Output data
-
-Maps of the predictions of current and future aspen habitat suitability generated by running the [AspenHabitat-MainText.Rmd](https://github.com/HARTLabGroup/AspenHabitat/blob/base/Code/AspenHabitat-MainText.Rmd) script are also forthcoming on [Dryad](https://doi.org/10.5061/dryad.t76hdr88v).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/HARTLabGroup/AspenHabitat/blob/base/License.md) file for details
+This project is licensed under the MIT License - see the LICENSE.md file for details
 
 ## Citation
 
-Please cite this work following the [Citation.cff](https://github.com/HARTLabGroup/AspenHabitat/blob/base/CITATION.cff) file
+Please cite this work following the Citation.cff file
 
 ## References
-
-Flint, L. E., and A. L. Flint. 2012. Downscaling future climate scenarios to fine scales for hydrologic and ecological modeling and analysis. Ecological Processes 1:2.
-
-Nalder, I. A., and R. W. Wein. 1998. Spatial interpolation of climatic Normals: test of a new method in the Canadian boreal forest. Agricultural and Forest Meteorology 92:211–225.
-
-Rodman, K., T. Veblen, M. Battaglia, M. Chambers, P. Fornwalt, Z. Holden, T. Kolb, J. Ouzts, and M. Rother. 2020, August 18. Data from: A changing climate is snuffing out post-fire recovery in montane forests. Dryad. [*https://doi.org/10.5061/DRYAD.QZ612JMB7*](https://doi.org/10.5061/DRYAD.QZ612JMB7)
-
-Zurell, D., Franklin, J., König, C., Bouchet, P.J., Dormann, C.F., Elith, J., Fandos, G., Feng, X., Guillera-Arroita, G., Guisan, A., Lahoz-Monfort, J.J., Leitão, P.J., Park, D.S., Peterson, A.T., Rapacciuolo, G., Schmatz, D.R., Schröder, B., Serra-Diaz, J.M., Thuiller, W., Yates, K.L., Zimmermann, N.E., Merow, C., 2020. A standard protocol for reporting species distribution models. Ecography 43, 1261–1277. [*https://doi.org/10.1111/ecog.04960*](https://doi.org/10.1111/ecog.04960)
