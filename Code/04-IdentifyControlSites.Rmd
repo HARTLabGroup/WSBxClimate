@@ -1,5 +1,5 @@
 ---
-title: "Identify host sites for nonhost sites based on climate and tree-ring data"
+title: "Identify control chronologies for detecting defoliation by the western spruce budworm in Douglas-fir radial growth time series based on climate and tree-ring data for: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
 author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
 email: "sarah.hart@colostate.edu"
 date: '`r format(Sys.time(), "%B %d, %Y")`'
@@ -44,7 +44,8 @@ pacman::p_load(
   bookdown,
   sf, # spatial data (new pkg)
   ncdf4, #import ncdf files
-  terra  # newer package for working with raster data
+  terra,  # newer package for working with raster data
+  raster  # older package for working with raster data (code still uses old function for creating raster from array) 
 ) 
 proj.proj <- 4629
 
@@ -57,7 +58,7 @@ Briefly, here we matched nonhost sites with host sites based the highest Pearson
 
 1.  the nonhost chronology overlapped the entire host chronology
 
-2.  the nonhost chronology was less than 150 km away from the host site.
+2.  the nonhost chronology was less than 125 km away from the host site.
 
 Finally, we removed any sites where the host chronology was poorly correlated (r\<0.2) with either the SC-PDSI or the available nonhost chronologies. Results of this matching are presented in Table \@ref(tab:hostxnonhost)).
 
@@ -113,7 +114,7 @@ host.rwls <- lapply(host.rwls, read.rwl)
 nonhost.rwls <- list.files(here("Data", "TreeRing", "Processed", "NonHost"), full.names = T, pattern=".rwl")
 names(nonhost.rwls) <- gsub(".rwl", "", unlist(list.files(here("Data", "TreeRing", "Processed", "NonHost"), pattern=".rwl", full.names=F)))
 nonhost.rwls <- lapply(nonhost.rwls, read.rwl)
-namez <- names(nonhost.rwls)
+namez <- names(nonhost.rwls) 
 bad.namez <- which(namez %in% c("CO532", "CO598", "DRI", "DRIre", "CO534", "ELDOre", "CO539", "CO608", "JEFFre", "CO030", "CO541", "CO625", "CO653", "CO548", "CO675", "CO550", "CO641", "VANBre"))
 nonhost.rwls <- nonhost.rwls[-bad.namez]
 
@@ -158,14 +159,16 @@ res <- data.frame(host=host.meta$SeriesCode, nonhost1=NA, nonhost2=NA, nonhost3=
 for(j in res$host){
   
   # (1) limit to chronologies that overlap the entire host record
-  lastyrj <- host.meta %>% dplyr::filter(SeriesCode == j) %>% pull(LastYear )
-  nonhost.long <- nonhost.meta %>% filter(LastYear>=lastyrj) %>% pull(SeriesCode)
-  nonhost.long <- which(nonhost.long %in% colnames(dists))
+  lastyrj <- host.meta %>% dplyr::filter(SeriesCode == j) %>% pull(LastYear)
+  firstyrj <- host.meta %>% dplyr::filter(SeriesCode == j) %>% pull(FirstYear)
+  firstyrj <- ifelse(firstyrj<1650, 1650, firstyrj)
+  nonhost.long <- nonhost.meta %>% filter(SeriesCode %in% nonhost.pts$SeriesCode & LastYear>=lastyrj & FirstYear<=firstyrj)  %>% pull(SeriesCode)
   
-  # (2) limit to sites within 150 km 
+  # (2) limit to sites within 100 km 
+  dists.j <- as.data.frame(dists)
   dists.j <- dists[j, nonhost.long]
   dists.j <- unclass(dists.j)
-  dists.j <- dists.j[dists.j <= 150000] 
+  dists.j <- dists.j[dists.j <= 125000] 
   
   # (3) determine top 3 correlations
   cor.matj <- cor.mat[j, names(dists.j)]
@@ -183,7 +186,7 @@ res$mean.r <- res %>% dplyr::select(nonhost1.r:nonhost3.r) %>% rowMeans(na.rm=T)
 res$notes <- NA
 res2 <- res
 
-res2 <- res2 %>% filter(r.hostxNADA>=0.2) # Estes park, Frankenberger Point or South Hollowell do not correlate well with PDSI
+res2 <- res2 %>% filter(r.hostxNADA>=0.2) # Estes park, Frankenberger Point, or South Hollowell do not correlate well with PDSI
 res <- res %>% mutate(notes=ifelse(r.hostxNADA<0.2, "Removed due to poor correlation with PDSI", NA))
 
 write.csv(res, here("Results", "hostXnonhost.csv"), row.names=F)
@@ -201,7 +204,7 @@ res <- res %>% unite("Control2", nonhost2, nonhost2.r, remove = TRUE, sep=" (r="
 
 res <- res %>% unite("Control3", nonhost3, nonhost3.r, remove = TRUE, sep=" (r=") %>% mutate(Control3=paste0(Control3, "; ")) %>% unite("Control3", Control3, nonhost3.d, remove = TRUE, sep="d=") %>% mutate(Control3=paste0(Control3, " km)")) 
   
-res <- res %>% select(host, Control1, Control2, Control3, r.hostxNADA, notes)
+res <- res %>% dplyr::select(host, Control1, Control2, Control3, r.hostxNADA, notes)
 colnames(res) <- c("Host site", "Nonhost control site 1", "Nonhost control site 2", "Nonhost control site 3", "Correlation with PDSI", "Notes")
 
 res %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)

@@ -1,5 +1,5 @@
 ---
-title: "Preprocessing of Douglas-fir chronologies"
+title: "Preprocessing of Douglas-fir chronologies for: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
 author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
 email: "sarah.hart@colostate.edu"
 date: '`r format(Sys.time(), "%B %d, %Y")`'
