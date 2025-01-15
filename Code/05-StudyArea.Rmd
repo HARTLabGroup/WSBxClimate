@@ -1,5 +1,5 @@
 ---
-title: "Spatial data for: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
+title: "Study area characteristics for: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
 author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
 email: "sarah.hart@colostate.edu"
 date: '`r format(Sys.time(), "%B %d, %Y")`'
@@ -16,7 +16,6 @@ citationcolor: blue
 
 ```{r setup,include=FALSE, results='hide'}
 knitr::opts_chunk$set(
-  echo = FALSE,
 	message = FALSE,
 	warning = FALSE,
 	progress = FALSE,
@@ -91,8 +90,9 @@ dir.create(here("Results", "Figures"), showWarnings = FALSE)
 
 # Overview
 
-The following code will download the necessary spatial data for the study.
+The following code generates the study area map and characterizes the climate using data from PRISM [@prismclimategroup2021].
 
+# Generate study area map
 ```{r Import_TreeRingSiteData}
 host.meta <- read.csv(here("Data", "TreeRing", "Processed", "Host", "host-metadata.csv")) # import host metadata
 nonhost.meta <- read.csv(here("Data", "TreeRing", "Processed", "Nonhost", "nonhost-metadata.csv")) # import nonhost metadata
@@ -111,61 +111,6 @@ host.sites.sub <- st_as_sf(x = host.meta.sub, coords = c("Lon", "Lat"), crs = "+
 host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
 ```
 
-```{r CharacterizeClimate}
-if(!file.exists(here("Results", "climate-norms-studyarea.csv"))){
-
-  # Douglas fir
-  if(!file.exists(here("Data", "Spatial", "ITSPM","f202.shp"))){
-    df.rast <- rast(here("Data", "Spatial", "ITSPM","f202"))
-    srm <- st_read(here("Data", "Spatial", "EcoRegions", "us_eco_l3", "us_eco_l3.shp"), quiet=T) %>% filter(US_L3NAME=="Southern Rockies") %>% st_transform(crs=st_crs(df.rast)) %>% vect()
-    df.rast <- crop(df.rast, srm)
-    df.rast[df.rast<10] <- NA
-    df.rast[df.rast>=10] <- 1
-
-    df.poly <- as.polygons(df.rast, aggregate=TRUE, values=TRUE, na.rm=TRUE) 
- 
-    writeVector(df.poly, here("Data", "Spatial", "ITSPM","f202.shp"), overwrite=T)
-  }
-  df.poly <-vect(here("Data", "Spatial", "ITSPM","f202.shp"))
-  host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(st_crs(df.poly)) %>% st_buffer(1000)
-  df.poly <- crop(df.poly, host.sites)
-  
-  prism_set_dl_dir(here("Data", "Spatial", "PRISM"))
-  
-  ppt.normal <- prism_archive_subset("ppt", "annual normals", resolution="800m") %>% pd_to_file() %>% rast()
-  tmin1.normal <- prism_archive_subset("tmin", "monthly normals", mon=1, resolution="800m") %>% pd_to_file() %>% rast()
-  tmax7.normal <- prism_archive_subset("tmax", "monthly normals", mon=7, resolution="800m") %>% pd_to_file() %>% rast()
-  
-  dem <- rast(here( here("Data", "Spatial", "DEM", "DEM250.tif")))
-  
-  df.poly <- df.poly %>% project(ppt.normal)
-  climate.normals <- data.frame(metric=c("mean", "min", "max"))
-  
-  climate.normals$PPT <- NA
-  climate.normals[climate.normals$metric=="mean", ]$PPT <- terra::zonal(z=df.poly, x=ppt.normal, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
-  climate.normals[climate.normals$metric=="max", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
-  
-  climate.normals$TMIN <- NA
-  climate.normals[climate.normals$metric=="mean", ]$TMIN <- terra::zonal(z=df.poly, x=tmin1.normal, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$TMIN <-  quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
-  climate.normals[climate.normals$metric=="max", ]$TMIN <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
-  
-  climate.normals$TMAX <- NA
-  climate.normals[climate.normals$metric=="mean", ]$TMAX <- terra::zonal(z=df.poly, x=tmax7.normal, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$TMAX <-  quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.1)
-  climate.normals[climate.normals$metric=="max", ]$TMAX <- quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.9)
-  
-  df.poly <- df.poly %>% project(dem)
-  climate.normals$Elev <- NA
-  climate.normals[climate.normals$metric=="mean", ]$Elev <- terra::zonal(z=df.poly, x=dem, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$Elev <-  quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.1)
-  climate.normals[climate.normals$metric=="max", ]$Elev <- quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.9)
-
-  write.csv(climate.normals, file=here("Results", "climate-norms-studyarea.csv"), row.names = F)
-}
-```
-
 ```{r FigStudyArea, results=F}
 if(!file.exists(here("Results", "Figures", "FigStudyArea.jpg"))){
   states <- st_read(here("Data", "Spatial", "States", "cb_2018_us_state_20m.shp")) %>% st_transform(proj.proj)
@@ -173,6 +118,19 @@ if(!file.exists(here("Results", "Figures", "FigStudyArea.jpg"))){
   #Denver
   denver <- st_read(here("Data", "Spatial", "Cities", "Colorado_City_Point_Locations.shp")) %>% filter(NAME=="DENVER") %>% st_transform(proj.proj)
 
+  # Convert raster of Douglas fir occurrence to polygon
+  
+  if(!file.exists(here("Data", "Spatial", "ITSPM","f202.shp"))){
+    df.rast <- rast(here("Data", "Spatial", "ITSPM","f202"))
+    srm <- st_read(here("Data", "Spatial", "EcoRegions", "us_eco_l3", "us_eco_l3.shp"), quiet=T) %>% filter(US_L3NAME=="Southern Rockies") %>% st_transform(crs=st_crs(df.rast)) %>% vect()
+    df.rast <- crop(df.rast, srm)
+    df.rast[df.rast<1] <- NA # set pixels were at least 1 of 64 pixels has Douglas fir
+    df.rast[df.rast>=1] <- 1
+
+    df.poly <- as.polygons(df.rast, aggregate=TRUE, values=TRUE, na.rm=TRUE) 
+ 
+    writeVector(df.poly, here("Data", "Spatial", "ITSPM","f202.shp"), overwrite=T)
+  }
 
   douglasfir <- vect(here("Data", "Spatial", "ITSPM","f202.shp")) %>% project(nonhost.sites) %>% st_as_sf()
   
@@ -200,6 +158,67 @@ if(!file.exists(here("Results", "Figures", "FigStudyArea.jpg"))){
   tmap_save(studyarea,filename=here("Results", "Figures", "FigStudyArea.jpg"),
           dpi=300, insets_tm=insetmap, insets_vp=vp,
           height=4.5, width=3.5, units="in")
+}
+```
+
+# Characterize climate
+```{r CharacterizeClimate}
+if(!file.exists(here("Results", "climate-norms-studyarea.csv"))){
+
+  df.poly <-vect(here("Data", "Spatial", "ITSPM","f202.shp"))
+  host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(st_crs(df.poly)) %>% st_buffer(1000)
+  df.poly <- crop(df.poly, host.sites)
+  
+  prism_set_dl_dir(here("Data", "Spatial", "PRISM"))
+  
+  ppt.normal <- prism_archive_subset("ppt", "annual normals", resolution="800m") %>% pd_to_file() %>% rast()
+  tmin1.normal <- prism_archive_subset("tmin", "monthly normals", mon=1, resolution="800m") %>% pd_to_file() %>% rast()
+  tmax7.normal <- prism_archive_subset("tmax", "monthly normals", mon=7, resolution="800m") %>% pd_to_file() %>% rast()
+  
+  AET <- rast(here('Data', 'Spatial', 'Rodman', 'AET and CWD', 'AET_1981-2010.tif'))
+  CWD <- rast(here('Data', 'Spatial', 'Rodman', 'AET and CWD', 'CWD_1981-2010.tif'))
+
+  dem <- rast(here("Data", "Spatial", "DEM", "DEM250.tif"))
+  
+  df.poly <- df.poly %>% project(ppt.normal)
+  climate.normals <- data.frame(metric=c("mean", "min", "max"))
+  
+  climate.normals$PPT <- NA
+  climate.normals[climate.normals$metric=="mean", ]$PPT <- terra::zonal(z=df.poly, x=ppt.normal, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
+  climate.normals[climate.normals$metric=="max", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
+  
+  climate.normals$TMIN <- NA
+  climate.normals[climate.normals$metric=="mean", ]$TMIN <- terra::zonal(z=df.poly, x=tmin1.normal, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$TMIN <-  quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
+  climate.normals[climate.normals$metric=="max", ]$TMIN <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
+  
+  climate.normals$TMAX <- NA
+  climate.normals[climate.normals$metric=="mean", ]$TMAX <- terra::zonal(z=df.poly, x=tmax7.normal, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$TMAX <-  quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.1)
+  climate.normals[climate.normals$metric=="max", ]$TMAX <- quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.9)
+  
+   df.poly <- df.poly %>% project(AET)
+   climate.normals$AET <- NA
+   climate.normals[climate.normals$metric=="mean", ]$AET <- terra::zonal(z=df.poly, x=AET, fun=mean)[1,1]
+   climate.normals[climate.normals$metric=="min", ]$AET <-  quantile(terra::extract(y=df.poly, x=AET)$`AET_1981-2010`, 0.1)
+   climate.normals[climate.normals$metric=="max", ]$AET <- quantile(terra::extract(y=df.poly, x=AET)$`AET_1981-2010`, 0.9)
+
+   df.poly <- df.poly %>% project(CWD)
+   climate.normals$CWD <- NA
+   climate.normals[climate.normals$metric=="mean", ]$CWD <- terra::zonal(z=df.poly, x=CWD, fun=mean)[1,1]
+   climate.normals[climate.normals$metric=="min", ]$CWD <-  quantile(terra::extract(y=df.poly, x=CWD)$`CWD_1981-2010`, 0.1)
+   climate.normals[climate.normals$metric=="max", ]$CWD <- quantile(terra::extract(y=df.poly, x=CWD)$`CWD_1981-2010`, 0.9)
+
+   
+   
+  df.poly <- df.poly %>% project(dem)
+  climate.normals$Elev <- NA
+  climate.normals[climate.normals$metric=="mean", ]$Elev <- terra::zonal(z=df.poly, x=dem, fun=mean)[1,1]
+  climate.normals[climate.normals$metric=="min", ]$Elev <-  quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.1)
+  climate.normals[climate.normals$metric=="max", ]$Elev <- quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.9)
+
+  write.csv(climate.normals, file=here("Results", "climate-norms-studyarea.csv"), row.names = F)
 }
 ```
 

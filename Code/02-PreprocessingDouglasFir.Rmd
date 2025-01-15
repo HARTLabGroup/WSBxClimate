@@ -16,7 +16,7 @@ citationcolor: blue
 
 ```{r setup,include=FALSE, results='hide'}
 knitr::opts_chunk$set(
-  echo = FALSE,
+  echo = TRUE,
 	message = FALSE,
 	warning = FALSE,
 	progress = FALSE,
@@ -67,7 +67,7 @@ dir.create(here("Data", "TreeRing", "Processed", "Host"), showWarnings = FALSE)
 
 # Overview
 
-Here we re-evaluated the crossdating of the host chronologies to ensure that the series were correctly dated. We used the dplR package [@bunn2008; @bunn2024DplRDendrochronologyProgram] to calculate the correlation between each series and a main chronology built from all other series at each site. We calculated the correlation in 50-year segments that overlapped by 25 years and then removed series that were poorly correlated with the main chronology.
+Here we re-evaluated the crossdating of the host chronologies to ensure that the series were correctly dated. We used the dplR package [@bunn2008; @bunn2024DplRDendrochronologyProgram] to calculate the correlation between each series and a main chronology built from all other series at each site. Using the *corr.rwl.seg()* function, we calculated correlation coefficients in 50-year segments that overlapped by 25 years and then removed series that were poorly correlated with the main chronology.
 
 ### Boulder County 18
 

@@ -1,14 +1,16 @@
 cff-version: 1.1.0
-message: "If you use this software, please cite it as below."
+message: "If you use this code, please cite it as below."
 authors:
 - family-names: "Hart"
   given-names: "Sarah J."
   orcid: "https://orcid.org/0000-0001-8371-8568"
 - family-names: "Santiago"
   given-names: "Olivia"
+- family-names: "Carrell"
+  given-names: "Joshua"
 - family-names: "Veblen"
   given-names: "Thomas T."
-title: "Code from:"
+title: "Code from: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
 version: v1.0.0-alpha
 date-released: 2024-10-22
 doi: 

@@ -16,7 +16,6 @@ citationcolor: blue
 
 ```{r setup,include=FALSE, results='hide'}
 knitr::opts_chunk$set(
-  echo = FALSE,
 	message = FALSE,
 	warning = FALSE,
 	progress = FALSE,
@@ -91,7 +90,7 @@ dir.create(here("Results", "Figures"), showWarnings = FALSE)
 
 # Overview
 
-The following code will download the necessary spatial data for the study.
+The following code will download nearly all publicly-available spatial data used in this study. Where data is not publicly-available or easy to programmatically download, we provide more details about how to access the data.
 
 # Spatial data
 
@@ -137,7 +136,7 @@ if(!file.exists(temp)){
 
 ### Digital Elevation Model
 
-We obtained a 250 m resolution Digital Elevation Model (DEM) for the study area from the National Elevation Dataset (NED) using the terrainr package [@terrainr2021].
+We obtained a 250 m resolution Digital Elevation Model (DEM) for the study area from the National Elevation Dataset (NED) using the *terrainr* package [@terrainr].
 
 ```{r DEM, echo=T}
 if(!file.exists(here("Data", "Spatial", "DEM", "DEM250.tif"))){
@@ -156,7 +155,7 @@ if(!file.exists(here("Data", "Spatial", "DEM", "DEM250.tif"))){
 
 ## Disturbance data
 
-We acquired polygon data describing the extent of burned areas for the 1984-2023 period from the Monitoring Trends in Burn Severity Project [-@mtbsprojectMTBSDataAccess2022] (mtbs.gov).
+We acquired polygon data describing the extent of burned areas for the 1984-2023 period from the Monitoring Trends in Burn Severity Project [-@mtbsprojectMTBSDataAccess2022] ([mtbs.gov](mtbs.gov)).
 
 ```{r DL_MTBS, echo=T}
 # MTBS 
@@ -174,7 +173,6 @@ To characterize recent history of WSB outbreaks across the study area, we acquir
 
 ```{r DL_ADS, echo=T}
 dir.create(here("Data", "Spatial", "ADS"), showWarnings = FALSE)
-
 temp <- here("Data", "Spatial", "ADS", "CONUS_Region2_AllYears.gdb.zip")
 if(!file.exists(temp)){
   download.file("https://www.fs.usda.gov/foresthealth/docs/IDS_Data_for_Download/CONUS_Region2_AllYears.gdb.zip", temp)
@@ -182,7 +180,7 @@ if(!file.exists(temp)){
 }
 ```
 
-To characterize the distribution of Douglas fir across the study area, we acquired a 240 x 240 m raster describing tree presence intensity for Douglas fir in ca. 2002 from the USFS's Individual Tree Species Parameter Maps [@ellenwood2015]. Intensity was calculated by summing the number of a possible sixty four 30-meter pixels within a 240-meter pixel with presence of Douglas fir.
+To characterize the distribution of Douglas fir across the study area, we acquired a 240 x 240 m raster describing tree presence intensity for Douglas fir in ca. 2002 from the USFS's Individual Tree Species Parameter Maps [@ellenwood2015]. Intensity was calculated by summing the number of a possible sixty four 30-meter pixels within a 240-meter pixel with presence of Douglas fir. The 2002 data is not available online, but can be obtained from the USFS (for more details see here <https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/individual-tree-species-parameter-maps>). In our analyses, we obtained this data in the form of an ArcInfo Gridstore and stored this data in the project subdirectory `r here("Data", "Spatial", "ITSPM", "f202")` .
 
 ## Climate data
 
@@ -191,7 +189,7 @@ To characterize the distribution of Douglas fir across the study area, we acquir
 We obtained multi-century (i.e., AD 1650-2005) records of the self-calibrating Palmer Drought Severity Index (SC-PDSI; [@wellsSelfCalibratingPalmerDrought2004, @palmer1965]) from the North American Drought Atlas (NADA), which provides tree-ring based reconstructions of June-August SC-PDSI on a 0.5° resolution grid [@cook2010].
 
 ```{r DL_NADA, echo=T}
-if(!file.exists(here("Data", "Spatial", "NADA"))){
+if(!dir.exists(here("Data", "Spatial", "NADA"))){
   dir.create(here("Data", "Spatial", "NADA"), showWarnings = FALSE)
   temp <- here("Data", "Spatial", "NADA", "nada_hd2_cl.nc")
   download.file("https://www.ncei.noaa.gov/pub/data/paleo/drought/LBDA2010/nada_hd2_cl.nc", temp)
@@ -200,7 +198,7 @@ if(!file.exists(here("Data", "Spatial", "NADA"))){
 
 ### PRISM
 
-To characterize the study area's climate, we obtained monthly precipitation totals, minimum temperatures, and maximum temperature 30-year normals from PRISM [@prismclimategroup2021] using the prism package [@prism2021]. In addition to monthly climate data, we also obtained gridded June-August SC-PDSI data from the West Wide Drought Tracker [@abatzoglouWestWideDrought2017].
+To characterize the study area's climate, we obtained monthly precipitation totals, minimum temperatures, and maximum temperature 30-year normals from PRISM [@prismclimategroup2021] using the *prism* package [@prism2021]. We also obtained gridded June-August SC-PDSI data from the West Wide Drought Tracker [@abatzoglouWestWideDrought2017].
 
 ```{r DL_PRISM, echo=T}
 if(!dir.exists(here("Data", "Spatial", "PRISM"))){
@@ -213,10 +211,6 @@ if(!dir.exists(here("Data", "Spatial", "PRISM"))){
   get_prism_normals("tmax", "800m", mon=7, keepZip = FALSE)
   
   # Monthly climate data
-  get_prism_monthlys(type = "tmean", year = 1895:2023, mon = 1:12, keepZip = FALSE)
-  get_prism_monthlys(type = "ppt", year = 1895:2023, mon = 1:12, keepZip = FALSE)
-  get_prism_monthlys(type = "vpdmax", year = 1895:2023, mon = 1:12, keepZip = FALSE)
-  
   temp <- here("Data", "Spatial", "PRISM", "scpdsi_6_PRISM.nc")
   download.file("http://www.wrcc.dri.edu/wwdt/data/PRISM/scpdsi/scpdsi_6_PRISM.nc", temp)
 
@@ -228,116 +222,8 @@ if(!dir.exists(here("Data", "Spatial", "PRISM"))){
 }
 ```
 
-# Characterize study area
+### Climatic Water Balance
 
-```{r Import_TreeRingSiteData}
-host.meta <- read.csv(here("Data", "TreeRing", "Processed", "Host", "host-metadata.csv")) # import host metadata
-nonhost.meta <- read.csv(here("Data", "TreeRing", "Processed", "Nonhost", "nonhost-metadata.csv")) # import nonhost metadata
-
-hostXnonhost <- read.csv(here("Results", "hostXnonhost-subset.csv")) # import data describing the nonhost sites matched to each host site
-
-host.meta.sub <- host.meta %>% filter(SeriesCode %in% hostXnonhost$host) # select only host sites 
-  
-select.nonhost.sites <- hostXnonhost[,c('nonhost1', 'nonhost2','nonhost3')] %>% unlist() %>% unique()
-nonhost.meta.sub <- nonhost.meta[nonhost.meta$SeriesCode %in% select.nonhost.sites, ]
-  
-nonhost.sites <- st_as_sf(x = nonhost.meta.sub,  coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
-
-host.sites.sub <- st_as_sf(x = host.meta.sub, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
-
-host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
-```
-
-```{r CharacterizeClimate}
-if(!file.exists(here("Results", "climate-norms-studyarea.csv"))){
-
-  # Douglas fir
-  if(!file.exists(here("Data", "Spatial", "ITSPM","f202.shp"))){
-    df.rast <- rast(here("Data", "Spatial", "ITSPM","f202"))
-    srm <- st_read(here("Data", "Spatial", "EcoRegions", "us_eco_l3", "us_eco_l3.shp"), quiet=T) %>% filter(US_L3NAME=="Southern Rockies") %>% st_transform(crs=st_crs(df.rast)) %>% vect()
-    df.rast <- crop(df.rast, srm)
-    df.rast[df.rast<10] <- NA
-    df.rast[df.rast>=10] <- 1
-
-    df.poly <- as.polygons(df.rast, aggregate=TRUE, values=TRUE, na.rm=TRUE) 
- 
-    writeVector(df.poly, here("Data", "Spatial", "ITSPM","f202.shp"), overwrite=T)
-  }
-  df.poly <-vect(here("Data", "Spatial", "ITSPM","f202.shp"))
-  host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(st_crs(df.poly)) %>% st_buffer(1000)
-  df.poly <- crop(df.poly, host.sites)
-  
-  prism_set_dl_dir(here("Data", "Spatial", "PRISM"))
-  
-  ppt.normal <- prism_archive_subset("ppt", "annual normals", resolution="800m") %>% pd_to_file() %>% rast()
-  tmin1.normal <- prism_archive_subset("tmin", "monthly normals", mon=1, resolution="800m") %>% pd_to_file() %>% rast()
-  tmax7.normal <- prism_archive_subset("tmax", "monthly normals", mon=7, resolution="800m") %>% pd_to_file() %>% rast()
-  
-  dem <- rast(here( here("Data", "Spatial", "DEM", "DEM250.tif")))
-  
-  df.poly <- df.poly %>% project(ppt.normal)
-  climate.normals <- data.frame(metric=c("mean", "min", "max"))
-  
-  climate.normals$PPT <- NA
-  climate.normals[climate.normals$metric=="mean", ]$PPT <- terra::zonal(z=df.poly, x=ppt.normal, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
-  climate.normals[climate.normals$metric=="max", ]$PPT <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
-  
-  climate.normals$TMIN <- NA
-  climate.normals[climate.normals$metric=="mean", ]$TMIN <- terra::zonal(z=df.poly, x=tmin1.normal, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$TMIN <-  quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.1)
-  climate.normals[climate.normals$metric=="max", ]$TMIN <- quantile(terra::extract(y=df.poly, x=tmin1.normal)[,2], 0.9)
-  
-  climate.normals$TMAX <- NA
-  climate.normals[climate.normals$metric=="mean", ]$TMAX <- terra::zonal(z=df.poly, x=tmax7.normal, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$TMAX <-  quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.1)
-  climate.normals[climate.normals$metric=="max", ]$TMAX <- quantile(terra::extract(y=df.poly, x=tmax7.normal)[,2], 0.9)
-  
-  df.poly <- df.poly %>% project(dem)
-  climate.normals$Elev <- NA
-  climate.normals[climate.normals$metric=="mean", ]$Elev <- terra::zonal(z=df.poly, x=dem, fun=mean)[1,1]
-  climate.normals[climate.normals$metric=="min", ]$Elev <-  quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.1)
-  climate.normals[climate.normals$metric=="max", ]$Elev <- quantile(terra::extract(y=df.poly, x=dem)$DEM250_3DEPElevation_1_1, 0.9)
-
-  write.csv(climate.normals, file=here("Results", "climate-norms-studyarea.csv"), row.names = F)
-}
-```
-
-```{r FigStudyArea, results=F}
-if(!file.exists(here("Results", "Figures", "FigStudyArea.jpg"))){
-  states <- st_read(here("Data", "Spatial", "States", "cb_2018_us_state_20m.shp")) %>% st_transform(proj.proj)
-
-  #Denver
-  denver <- st_read(here("Data", "Spatial", "Cities", "Colorado_City_Point_Locations.shp")) %>% filter(NAME=="DENVER") %>% st_transform(proj.proj)
-
-
-  douglasfir <- vect(here("Data", "Spatial", "ITSPM","f202.shp")) %>% project(nonhost.sites) %>% st_as_sf()
-  
-  x <- tmaptools::bb(nonhost.sites)
-  x[1] <- -107; x[2] <- 38.1; x[3] <- -104; x[4] <- 41.25
-  asp1 <- (x$ymax - x$ymin)/(x$xmax - x$xmin)
-  sg <- bb_poly(nonhost.sites, projection = st_crs(nonhost.sites))
-
-  
-  studyarea <- tm_shape(douglasfir, bbox=x) +  tm_fill(col="#5ab4ac") + tm_shape(nonhost.sites) +tm_symbols(size=0.25, shape=21,col="darkgray", alpha=1) + tm_shape(host.sites.sub) +tm_symbols(size=0.25, shape=17, col="black") + tm_shape(denver) +tm_symbols(shape=8, size=0.5, col="black") + tm_text("NAME", just=c(-0.25,0), size=0.7, remove.overlap=T) +  tm_scale_bar(position = c(0.95,0.005), text.size=0.75, just="right", breaks=c(0,50), bg.color="white", bg.alpha = 0.8)+tm_compass(position=c("right", "top"), text.size=0.75, size=2, type="4star")+tm_graticules(lines=F)
-
-  wus <- states %>% filter(STUSPS %in% c("WA", "OR", "CA", "ID", "NV", "AZ", "MT", "UT", "NM", "CO", "WY")) %>% st_transform(st_crs(douglasfir))
-  xy <- st_bbox(wus)
-  asp2 <- (xy$xmax - xy$xmin)/(xy$ymax - xy$ymin)
-  
-  insetmap = tm_shape(wus) + tm_fill(col="lightgrey") +
-  tm_shape(wus) + tm_borders(lwd = 1, col="grey") +
-  tm_shape(sg) + tm_borders(lw=2, col="black") +
-  tm_layout(inner.margins = c(0.04,0.04,0.04,0.04), outer.margins=c(0,0,0,0))
-  
-  w <- 0.3
-  h <- asp2 * w
-  vp <- viewport(x=0.15, y=0.009, width = w, height=h, just=c("left", "bottom"))
-  
-  tmap_save(studyarea,filename=here("Results", "Figures", "FigStudyArea.jpg"),
-          dpi=300, insets_tm=insetmap, insets_vp=vp,
-          height=4.5, width=3.5, units="in")
-}
-```
+We also downloaded actual evaportranspiration (AET) and climatic water deficit (CWD) normals (1981-2010) from Rodman et al. [-@rodman2020DataTraitbasedApproach; -@rodman2020TraitbasedApproachAssessing]. Data is publicly available on Dryad (<https://datadryad.org/stash/dataset/doi:10.5061/dryad.cz8w9gj1b>). For our analyses, we downloaded the zipped data file and stored it in the project subdirectory `r here("Data", "Spatial", "Rodman")`.
 
 # References

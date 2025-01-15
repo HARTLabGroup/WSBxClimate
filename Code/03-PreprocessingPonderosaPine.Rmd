@@ -16,7 +16,7 @@ citationcolor: blue
 
 ```{r setup,include=FALSE, results='hide'}
 knitr::opts_chunk$set(
-  echo = FALSE,
+  echo = TRUE,
 	message = FALSE,
 	warning = FALSE,
 	progress = FALSE,
@@ -63,7 +63,17 @@ dir.create(here("Data", "TreeRing", "Processed", "NonHost"), showWarnings = FALS
 ```
 
 # Overview
-## Compile metadata
+
+Here we compile metadata for ponderosa pine chronologies used as a non-host control series in our analyses. We also combine data from the same site that were collected in several collection efforts.
+
+# Compile metadata
+
+Additionally, we used the *dplR* package [@bunn2008; @bunn2024DplRDendrochronologyProgram] to calculate the number of series, chronology length, mean and standard deviation of the interseries correlation, and the mean and standard deviation of the first order autocorrelation coefficient.
+
+## International Tree Ring Database
+
+We downloaded all available ponderosa pine chronologies collected in the state of Colorado from the International Tree Ring Databank (ITRDB).
+
 ```{r KeyMetaITDRB, results=F, echo=F}
 
 #### ITDRB ####
@@ -100,8 +110,8 @@ for(j in 1:nrow(keymet)){
     rwl.reportj <- rwl.report(rwlj)
     rwl.summaryj <- summary.rwl(rwlj)
      keymet[keymet$`SeriesCode`==series, "nseries"] <- rwl.reportj$nSeries # calculate the number of series
-     keymet[keymet$`SeriesCode`==series, "FirstYear"] <- rwl.reportj$firstYear# calculate the number of series
-     keymet[keymet$`SeriesCode`==series, "LastYear"] <- rwl.reportj$lastYear# calculate the number of series
+     keymet[keymet$`SeriesCode`==series, "FirstYear"] <- rwl.reportj$firstYear# calculate the first year 
+     keymet[keymet$`SeriesCode`==series, "LastYear"] <- rwl.reportj$lastYear# calculate the last year
   
     keymet[keymet$`SeriesCode`==series, "interrbar"] <- rwl.reportj$meanInterSeriesCor # calculate mean interseries correlation
     keymet[keymet$`SeriesCode`==series, "interrbar.sd"] <- rwl.reportj$sdInterSeriesCor# calculate sd interseries correlation
@@ -114,6 +124,10 @@ for(j in 1:nrow(keymet)){
 }
 
 ```
+
+## Veblen
+
+We also acquired ponderosa pine chronologies initially collected by Veblen et al. [-@veblen2000] and recollection data collected by Veblen, but unpublished.
 
 ```{r KeyMetaVeblen, results=F, echo=F}
 #### VEBLEN LAB ####
@@ -159,9 +173,12 @@ keymet <- rbind(keymet, keymet.veblen)
 ```
 
 # Combine recollections with original data
-We computed the correlation between each tree-ring series using the *corr.rwl.seg()* function in the dplR package. 
+
+We computed the correlation between each tree-ring series using the *corr.rwl.seg()* function in the *dplR* package [@bunn2008; @bunn2024DplRDendrochronologyProgram].
 
 ## Deer Mountain
+
+We combined ponderosa pine data collected by Graybill [-@graybill2002NOAAWDSPaleoclimatology] and Woodhouse et al. [-@woodhouse2006NOAAWDSPaleoclimatologyc].
 
 ```{r DMdat, results=F, echo=F}
 ## CO532
@@ -183,7 +200,6 @@ rwlcombocor <- corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1)
 ```
 
 ```{r DMtab, tab.id="DMtab", tab.cap="Series statistics and cross-dating notes for the Deer Mountain site. Spearman's correlations were calculated over the common period of overlap between the series and a main chronology built from all other series."}
-
 summary.tab <- summary.rwl(rwlcombo)
 summary.tab$rho <- round(corr.rwl.seg(rwlcombo, seg.length=50, pcrit=0.1, make.plot=F)$overall[,1],2)
 summary.tab <- summary.tab %>% dplyr::select(series, first, last, rho) %>% mutate(first=as.character(first), last=as.character(last))
@@ -213,9 +229,10 @@ keymet <- rbind(keymet, keymet.combo)
 write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "DMCombo.rwl"), format="tucson")
 ```
 
-\pagebreak
-
 ## Deer Ridge
+
+We combined ponderosa pine data collected by Veblen et al. [-@veblen2000] and subsequently recollected, but unpublished, by Veblen.
+
 ```{r DRdat, results=F, echo=F}
 ## Original (Veblen et al. 2000)
 rwlj <-read.rwl(veblen.series$DRI)
@@ -265,8 +282,10 @@ write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "DRIc
 
 ```
 
-\pagebreak
 ## Eldorado Canyon
+
+We combined ponderosa pine chronologies collected by Graybill [-@graybill2002NOAAWDSPaleoclimatologya] and recollected by Veblen, but unpublished.
+
 ```{r ELDOdat, results=F, echo=F}
 ## Original - Graybill (CO534)
 rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", paste0("CO534", ".rwl")))
@@ -314,8 +333,10 @@ keymet <- rbind(keymet, keymet.combo)
 write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "ELDOcombo.rwl"), format="tucson")
 ```
 
-\pagebreak
 ## Jefferson County Colorado
+
+We combined ponderosa pine chronologies collected by Graybill [-@graybill2002NOAAWDSPaleoclimatologyd] and Woodhouse [-@woodhouse2006NOAAWDSPaleoclimatologyg].
+
 ```{r JCdat, results=F, echo=F}
 ## Original - Graybill CO539
 rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO539.rwl"))
@@ -378,8 +399,10 @@ keymet <- rbind(keymet, keymet.combo)
 write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "JEFFcombo.rwl"), format="tucson")
 ```
 
-\pagebreak
 ## Kassler
+
+We combined ponderosa pine chronologies collected by Fritts [-@fritts2002NOAAWDSPaleoclimatology] and Graybill [-@graybill2002NOAAWDSPaleoclimatologyb].
+
 ```{r Kasslerdat, results=F, echo=F}
 # Original - Fritts CO030
 rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO030.rwl"))
@@ -430,8 +453,10 @@ keymet <- rbind(keymet, keymet.combo)
 write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "KaslerCombo.rwl"), format="tucson")
 ```
 
-\pagebreak
 ## South Fork
+
+We combined ponderosa pine chronologies collected by Woodhouse et al. [-@woodhouse2006NOAAWDSPaleoclimatologyh] and Woodhouse and Losleben [-@woodhouse2016NOAAWDSPaleoclimatology].
+
 ```{r SFdat, results=F, echo=F}
 ## Original --> CO625 
 rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO625.rwl"))
@@ -461,7 +486,6 @@ summary.tab$Update <- ifelse(summary.tab$Series %in% c(colnames(rwlj1),colnames(
 summary.tab[order(summary.tab$Series),] %>% flextable() %>% flextable::align(j=-1, align = "center", part = "all") %>% set_table_properties(layout = "autofit", width=1)
 ```
 
-
 ```{r SouthForkMeta, results=F, echo=F}
 keymet.combo <- keymet %>% filter(SeriesCode=="CO625") 
 keymet.combo$SeriesCode <- "SFcombo"
@@ -480,8 +504,11 @@ keymet <- rbind(keymet, keymet.combo)
 ### Write to file
 write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "SFcombo.rwl"), format="tucson")
 ```
-\pagebreak
+
 ## Turkey Creek Bluff
+
+We combined ponderosa pine chronologies collected by Graybill [-@graybill2002NOAAWDSPaleoclimatologyc] and Woodhouse et. al [-@woodhouse2019NOAAWDSPaleoclimatologya].
+
 ```{r TCdat, results=F, echo=F}
 ## CO548
 rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO548.rwl"))
@@ -530,8 +557,11 @@ keymet <- rbind(keymet, keymet.combo)
 ### Write to file
 write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "TCcombo.rwl"), format="tucson")
 ```
-\pagebreak
+
 ## Van Bibber Creek
+
+We combined ponderosa pine chronologies collected by Graybill [-@graybill1997NOAAWDSPaleoclimatology], Woodhouse et al. [-@woodhouse2010NOAAWDSPaleoclimatologya], and recollected by Veblen, but unpublished.
+
 ```{r VANBdat, results=F, echo=F}
 ## Original - CO550
 rwlj <-read.rwl(here("Data", "TreeRing", "Raw", "Nonhost", "ITRDB", "data", "pub", "data", "paleo", "treering", "measurements", "northamerica", "usa", "CO550.rwl"))
@@ -592,3 +622,5 @@ write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "VANB
 ```{r writeMetadata, results=F, echo=F}
 write.csv(keymet, here("Data", "TreeRing", "Processed", "Nonhost", "Nonhost-Metadata.csv"), row.names=F)
 ```
+
+# References

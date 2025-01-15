@@ -16,7 +16,7 @@ citationcolor: blue
 
 ```{r setup,include=FALSE, results='hide'}
 knitr::opts_chunk$set(
-  echo = FALSE,
+  echo = T,
 	message = FALSE,
 	warning = FALSE,
 	progress = FALSE,
@@ -54,6 +54,7 @@ dir.create(here("Data", "Spatial"), showWarnings = FALSE)
 dir.create(here("Results"), showWarnings = FALSE)
 ```
 
+# Overview
 Briefly, here we matched nonhost sites with host sites based the highest Pearson's correlation, subject to the following constraints:
 
 1.  the nonhost chronology overlapped the entire host chronology
@@ -72,38 +73,11 @@ host.sites <- st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=lon
 ```
 
 ```{r NADA, results='hide'}
-if(!file.exists(here("Data", "nada-hosts.csv"))){
-  nc_data <- nc_open(here("Data", "Spatial", "NADA", "nada_hd2_cl.nc"))
-  lon <- ncvar_get(nc_data, "lon")
-  lat <- ncvar_get(nc_data, "lat")
-  t <- ncvar_get(nc_data, "time")
-  fillvalue <- ncatt_get(nc_data, "pdsi", "_FillValue")
-  
-  nada.array <- ncvar_get(nc_data, "pdsi")
-  nc_close(nc_data)
-  nada.array[nada.array== fillvalue ] <- NA
-  
-  nada <-raster(nada.array[1651,,], xmn=min(lon), xmx=max(lon), ymn=min(lat), ymx=max(lat), crs=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0"))
-  nada <- flip(nada, direction="y")
-  years <- 1652:length(t)
-  for(j in years){
-    r <- raster(nada.array[j,,], xmn=min(lon), xmx=max(lon), ymn=min(lat), ymx=max(lat), crs=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs+ towgs84=0,0,0"))
-    r <- flip(r, direction="y")
-    nada <- stack(nada, r)
-    r <- NULL
-  }
-  
-  nada.hosts <- t(terra::extract(nada, host.sites)) %>% as.data.frame()
-  colnames(nada.hosts) <- host.sites$SeriesCode
-  row.names(nada.hosts) <- 1650:(max(years)-1)
-  nada.hosts %>% write.csv(here("Data", "nada-hosts.csv"),row.names=T)
-}
+# Read in NADA time series
+nada.hosts <- read.csv(here("Data", "nada-hosts.csv"))
 ```
 
 ```{r HostXNonhost, results='hide'}
-# Read in NADA time series
-nada.hosts <- read.csv(here("Data", "nada-hosts.csv"))
-  
 ### READ IN RINGWIDTH DATA
 # Host data
 host.rwls <- list.files(here("Data", "TreeRing", "Processed", "Host"), pattern=".rwl", full.names=T)
@@ -178,7 +152,7 @@ for(j in res$host){
   res[res$host==j, c("nonhost1.d", "nonhost2.d", "nonhost3.d")] <-  dists.j[names(top3)]
   
   # (4) correlation between host and NADA
-  nada.ts <- ts(nada.hosts[,j], start=1650)
+  nada.ts <- ts(nada.hosts[,j], start=min(nada.hosts$X))
   res[res$host==j, ]$r.hostxNADA <- cor(cbind(host.crns.mts[,colnames(host.crns.mts)==j], nada.ts), use="pairwise.complete.obs")[1,2]
 
 }
