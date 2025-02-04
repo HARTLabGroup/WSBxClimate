@@ -1,16 +1,16 @@
-SeriesCode,SiteName,Contributors,Lat,Lon,Elev
-B18,Boulder County 18,"Veblen, Thomas T.; ; Gonzalez, Mauro",40.16,-105.46,"2,420"
-B19,Boulder County 19,"Veblen, Thomas T.; ; Gonzalez, Mauro",40.17,-105.48,2625
-EP,Estes Park,"Shimek, Steven W.; Veblen, Thomas T.",40.36,-105.45,2666
-FP,Frankenberger Pt.,"Shimek, Steven W.; Veblen, Thomas T.",40.04,-105.45,2409
-JP,Lost Jeep,"Shimek, Steven W.; Veblen, Thomas T.",39.09,-105.37,2598
-LJ,Lost Junction,"Shimek, Steven W.; Veblen, Thomas T.",40.29,-105.46,2619
-NI,North Inlet,"Veblen, T.T.; Sibold, Jason; Gonzalez, Mauro",40.28,-105.78,2775
-SH,S. Hollowell,"Shimek, Steven W.; Veblen, Thomas T.",40.34,-105.61,2579
-SR,South Rd. 30,"Shimek, Steven W.; Veblen, Thomas T.",39.16,-105.02,2755
-SS,Sugarloaf Saddle,"Shimek, Steven W.; Veblen, Thomas T.",40.03,-105.42,2654
-SP,Summerland Park,"Veblen, T.T.; Sibold, Jason; Gonzalez, Mauro",40.26,-105.79,2620
-TI,Three Island Lake Trail,"Veblen, T.T.",40.76,-106.75,2633
-WR,W. Rd 211,"Shimek, Steven W.; Veblen, Thomas T.",39.09,-105.41,2554
-WW,Wigwam I,"Shimek, Steven W.; Veblen, Thomas T.",39.24,-105.27,2053
-WB,Wild Basin,"Veblen, T.T.; Sibold, Jason; Gonzalez, Mauro",40.21,-105.55,2577
+SeriesCode,SiteName,Location,Lon,Lat,elevation,speciescode,species,investigators
+TI,Three Island Lake Trail,Colorado,-106.75,40.76,2633,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Veblen, T. T.; Daniels, L.;  Farley, K. A."
+B18,Boulder County 18,Colorado,-105.46,40.16,2420,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Veblen, T. T.; Gonzalez, M."
+B19,Boulder County 19,Colorado,-105.48,40.17,2625,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Veblen, T. T.; Gonzalez, M."
+EP,Estes Park,Colorado,-105.45,40.36,2666,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+FP,Frankenberger Pt.,Colorado,-105.45,40.04,2409,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+LJ,Lost Junction,Colorado,-105.46,40.29,2619,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+SS,Sugarloaf Saddle,Colorado,-105.42,40.03,2654,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+WB,Wild Basin,Colorado,-105.55,40.21,2577,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Veblen, T. T.;  Sibold, J.; Gonzalez; M."
+NI,North Inlet,Colorado,-105.78,40.28,2775,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Veblen, T. T.;  Sibold, J.; Gonzalez; M."
+SP,Summerland Park,Colorado,-105.79,40.26,2620,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Veblen, T. T.;  Sibold, J.; Gonzalez; M."
+SH,S. Hollowell,Colorado,-105.61,40.34,2579,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+SR,South Rd. 30,Colorado,-105.02,39.16,2755,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+JP,Lost Jeep,Colorado,-105.37,39.09,2598,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+WR,W. Rd 211,Colorado,-105.41,39.09,2554,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"
+WW,Wigwam I,Colorado,-105.27,39.24,2053,PSME,Pseudotsuga menziesii (Mirb.) Franco,"Shimek, S. W.; Veblen, T. T.,"

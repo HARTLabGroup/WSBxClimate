@@ -1,0 +1,19 @@
+---
+output: 
+   officedown::rdocx_document:
+     reference_docx: Template.docx
+bibliography: references.bib
+csl: "`r here::here('citationstyle.csl')`"
+link-citations: true
+urlcolor: blue
+linkcolor: blue
+citationcolor: blue
+---
+
+# Highlights
+
+-   Western spruce budworm outbreaks were often preceded by periods of drought
+
+-   Outbreaks were sustained by periods of above average moisture availability
+
+-   Euro-American colonization was initially linked with lower susceptibility to outbreak

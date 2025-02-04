@@ -90,7 +90,17 @@ dir.create(here("Results", "Figures"), showWarnings = FALSE)
 
 # Overview
 
-The following code will download nearly all publicly-available spatial data used in this study. Where data is not publicly-available or easy to programmatically download, we provide more details about how to access the data.
+The following code will download nearly all publicly-available data used in this study. Where data is not publicly-available or easy to programmatically download, we provide more details about how to access the data.
+
+# Tree ring data
+
+## Host
+
+Tree-ring data collected from Douglas fir trees for the purpose of reconstructing past western spruce budworm outbreaks are available on Dryad (<https://doi.org/10.5061/dryad.bnzs7h4n3>). In our analyses, we stored this data in the project subdirectory `~Data/TreeRing/Raw/Host/Veblen`.
+
+## Non-host
+
+We obtained all raw ring width data collected from ponderosa pine trees collected in the state of Colorado from the International Tree Ring Databank (<https://www.ncei.noaa.gov/products/paleoclimatology/tree-ring>). In our analyses, we stored this data in the project subdirectory `~Data/TreeRing/Raw/NonHost/ITRDB`.
 
 # Spatial data
 
@@ -153,6 +163,8 @@ if(!file.exists(here("Data", "Spatial", "DEM", "DEM250.tif"))){
 
 ## Douglas fir distribution
 
+To characterize the distribution of Douglas fir across the study area, we acquired a 240 x 240 m raster describing tree presence intensity for Douglas fir in ca. 2002 from the USFS's Individual Tree Species Parameter Maps [@ellenwood2015]. Intensity was calculated by summing the number of a possible sixty four 30-meter pixels within a 240-meter pixel with presence of Douglas fir. The 2002 data is not available online, but can be obtained from the USFS (for more details see here <https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/individual-tree-species-parameter-maps>). In our analyses, we obtained this data in the form of an ArcInfo Gridstore and stored this data in the project subdirectory `~Data/Spatial/ITSPM/f202`.
+
 ## Disturbance data
 
 We acquired polygon data describing the extent of burned areas for the 1984-2023 period from the Monitoring Trends in Burn Severity Project [-@mtbsprojectMTBSDataAccess2022] ([mtbs.gov](mtbs.gov)).
@@ -165,6 +177,7 @@ if(!file.exists(temp)){
   download.file("https://edcintl.cr.usgs.gov/downloads/sciweb1/shared/MTBS_Fire/data/composite_data/burned_area_extent_shapefile/mtbs_perimeter_data.zip", temp, mode="wb")
   unzip(temp, exdir=here("Data", "Spatial", "MTBS"))
 }
+
 ```
 
 ### Aerial Detection Survey Data
@@ -180,13 +193,11 @@ if(!file.exists(temp)){
 }
 ```
 
-To characterize the distribution of Douglas fir across the study area, we acquired a 240 x 240 m raster describing tree presence intensity for Douglas fir in ca. 2002 from the USFS's Individual Tree Species Parameter Maps [@ellenwood2015]. Intensity was calculated by summing the number of a possible sixty four 30-meter pixels within a 240-meter pixel with presence of Douglas fir. The 2002 data is not available online, but can be obtained from the USFS (for more details see here <https://www.fs.usda.gov/science-technology/data-tools-products/fhp-mapping-reporting/individual-tree-species-parameter-maps>). In our analyses, we obtained this data in the form of an ArcInfo Gridstore and stored this data in the project subdirectory `r here("Data", "Spatial", "ITSPM", "f202")` .
-
 ## Climate data
 
 ### North American Drought Atlas
 
-We obtained multi-century (i.e., AD 1650-2005) records of the self-calibrating Palmer Drought Severity Index (SC-PDSI; [@wellsSelfCalibratingPalmerDrought2004, @palmer1965]) from the North American Drought Atlas (NADA), which provides tree-ring based reconstructions of June-August SC-PDSI on a 0.5° resolution grid [@cook2010].
+We obtained multi-century (i.e., AD 1650-2005) records of the self-calibrating Palmer Drought Severity Index (SC-PDSI) from the North American Drought Atlas (NADA), which provides tree-ring based reconstructions of June-August SC-PDSI on a 0.5° resolution grid [@cook2010].
 
 ```{r DL_NADA, echo=T}
 if(!dir.exists(here("Data", "Spatial", "NADA"))){
@@ -198,7 +209,7 @@ if(!dir.exists(here("Data", "Spatial", "NADA"))){
 
 ### PRISM
 
-To characterize the study area's climate, we obtained monthly precipitation totals, minimum temperatures, and maximum temperature 30-year normals from PRISM [@prismclimategroup2021] using the *prism* package [@prism2021]. We also obtained gridded June-August SC-PDSI data from the West Wide Drought Tracker [@abatzoglouWestWideDrought2017].
+To characterize the study area's climate, we obtained monthly precipitation totals, minimum temperatures, and maximum temperature 30-year normals from PRISM [@prismclimategroup2021] using the *prism* package [@prism]. We also obtained gridded June-August SC-PDSI data from the West Wide Drought Tracker [@abatzoglouWestWideDrought2017].
 
 ```{r DL_PRISM, echo=T}
 if(!dir.exists(here("Data", "Spatial", "PRISM"))){
@@ -224,6 +235,6 @@ if(!dir.exists(here("Data", "Spatial", "PRISM"))){
 
 ### Climatic Water Balance
 
-We also downloaded actual evaportranspiration (AET) and climatic water deficit (CWD) normals (1981-2010) from Rodman et al. [-@rodman2020DataTraitbasedApproach; -@rodman2020TraitbasedApproachAssessing]. Data is publicly available on Dryad (<https://datadryad.org/stash/dataset/doi:10.5061/dryad.cz8w9gj1b>). For our analyses, we downloaded the zipped data file and stored it in the project subdirectory `r here("Data", "Spatial", "Rodman")`.
+We also downloaded actual evaportranspiration (AET) and climatic water deficit (CWD) normals (1981-2010) from Rodman et al. [-@rodman2020DataTraitbasedApproach; -@rodman2020TraitbasedApproachAssessing]. Data is publicly available on Dryad (<https://datadryad.org/stash/dataset/doi:10.5061/dryad.cz8w9gj1b>). For our analyses, we downloaded the zipped data file and stored it in the project subdirectory `~Data/Spatial/Rodman`.
 
 # References

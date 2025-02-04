@@ -127,7 +127,7 @@ for(j in 1:nrow(keymet)){
 
 ## Veblen
 
-We also acquired ponderosa pine chronologies initially collected by Veblen et al. [-@veblen2000] and recollection data collected by Veblen, but unpublished.
+We also acquired ponderosa pine chronologies initially collected by Veblen et al. [-@veblen2000] and subsequently recollected by Smith and Veblen in 2007.
 
 ```{r KeyMetaVeblen, results=F, echo=F}
 #### VEBLEN LAB ####
@@ -231,7 +231,7 @@ write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "DMCo
 
 ## Deer Ridge
 
-We combined ponderosa pine data collected by Veblen et al. [-@veblen2000] and subsequently recollected, but unpublished, by Veblen.
+We combined ponderosa pine data collected by Veblen et al. [-@veblen2000] and subsequently recollected by Smith and Veblen in 2007.
 
 ```{r DRdat, results=F, echo=F}
 ## Original (Veblen et al. 2000)
@@ -284,7 +284,7 @@ write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "DRIc
 
 ## Eldorado Canyon
 
-We combined ponderosa pine chronologies collected by Graybill [-@graybill2002NOAAWDSPaleoclimatologya] and recollected by Veblen, but unpublished.
+We combined ponderosa pine chronologies collected by Graybill [-@graybill2002NOAAWDSPaleoclimatologya] and subsequently recollected by Smith and Veblen in 2007.
 
 ```{r ELDOdat, results=F, echo=F}
 ## Original - Graybill (CO534)
@@ -335,7 +335,7 @@ write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "ELDO
 
 ## Jefferson County Colorado
 
-We combined ponderosa pine chronologies collected by Graybill [-@graybill2002NOAAWDSPaleoclimatologyd] and Woodhouse [-@woodhouse2006NOAAWDSPaleoclimatologyg].
+We combined ponderosa pine chronologies collected by Graybill [-@graybill2002NOAAWDSPaleoclimatologyd], Woodhouse [-@woodhouse2006NOAAWDSPaleoclimatologyg] and subsequently recollected by Smith and Veblen in 2007.
 
 ```{r JCdat, results=F, echo=F}
 ## Original - Graybill CO539
@@ -560,7 +560,7 @@ write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "TCco
 
 ## Van Bibber Creek
 
-We combined ponderosa pine chronologies collected by Graybill [-@graybill1997NOAAWDSPaleoclimatology], Woodhouse et al. [-@woodhouse2010NOAAWDSPaleoclimatologya], and recollected by Veblen, but unpublished.
+We combined ponderosa pine chronologies collected by Graybill [-@graybill1997NOAAWDSPaleoclimatology], Woodhouse et al. [-@woodhouse2010NOAAWDSPaleoclimatologya] and subsequently recollected by Smith and Veblen in 2007.
 
 ```{r VANBdat, results=F, echo=F}
 ## Original - CO550

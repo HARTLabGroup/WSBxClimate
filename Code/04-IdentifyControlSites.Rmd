@@ -47,7 +47,6 @@ pacman::p_load(
   terra,  # newer package for working with raster data
   raster  # older package for working with raster data (code still uses old function for creating raster from array) 
 ) 
-proj.proj <- 4629
 
 # Set directory structure for project
 dir.create(here("Data", "Spatial"), showWarnings = FALSE)
@@ -66,6 +65,7 @@ Finally, we removed any sites where the host chronology was poorly correlated (r
 ```{r TreeRingData, results='hide'}
 host.meta <- read.csv(here("Data", "TreeRing", "Processed", "Host", "host-metadata.csv"))
 nonhost.meta <- read.csv(here("Data", "TreeRing", "Processed", "Nonhost", "nonhost-metadata.csv")) %>% filter(is.na(Lat)==F)
+proj.proj <- 4629
 
 nonhost.sites <- st_as_sf(x = nonhost.meta,  coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
 
@@ -115,9 +115,9 @@ nonhost.crns.ts <- lapply(nonhost.crns, FUN=function(x){return( ts(x, start=min(
 nonhost.crns.mts<- do.call(cbind, nonhost.crns.ts)
 
 ## CALCULATE DISTANCES
-host.pts <-  st_as_sf(x = host.meta, coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>%  st_transform("epsg:26913")
+host.pts <- st_as_sf(x = host.meta,  coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(proj.proj)
 
-nonhost.pts <-  st_as_sf(x = nonhost.meta[!is.na(nonhost.meta$Lat)==T,], coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform("epsg:26913") %>%  filter(SeriesCode %in% names(nonhost.crns))
+nonhost.pts <-  st_as_sf(x = nonhost.meta[!is.na(nonhost.meta$Lat)==T,], coords = c("Lon", "Lat"), crs = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs") %>% st_transform(32613) %>%  filter(SeriesCode %in% names(nonhost.crns))  %>% st_transform(proj.proj)
 
 dists <- st_distance(host.pts, nonhost.pts, by_element=F) 
 row.names(dists)<- host.pts$SeriesCode
