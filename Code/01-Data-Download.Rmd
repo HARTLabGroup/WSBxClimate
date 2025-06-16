@@ -1,6 +1,6 @@
 ---
 title: "Spatial data for: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
-author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
+author: "Sarah J. Hart, Olivia Santiago, Joshua D. Carrell, and Thomas T. Veblen"
 email: "sarah.hart@colostate.edu"
 date: '`r format(Sys.time(), "%B %d, %Y")`'
 output: 
@@ -26,7 +26,7 @@ knitr::opts_chunk$set(
 
 set.seed(513)
 options(repos = c(CRAN = "http://cran.rstudio.com"))
-options(timeout=60*30) # timeout downloads that last longer than 30 minutes
+options(timeout=60*60) # timeout downloads that last longer than 1 hour
 
 ### Import libraries
 if (!require("remotes"))  install.packages("remotes")
@@ -139,7 +139,7 @@ We obtained Level III Ecoregion data for the United States from the US Environme
 dir.create(here("Data","Spatial", "EcoRegions"), showWarnings = FALSE)
 temp <- here("Data", "Spatial", "EcoRegions","us_eco_l3.zip")
 if(!file.exists(temp)){
-  download.file("https://gaftp.epa.gov/EPADataCommons/ORD/Ecoregions/us/us_eco_l3.zip", temp, mode="wb")
+  download.file("https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/us/us_eco_l3.zip", temp, mode="wb")
   unzip(temp, exdir=here("Data", "Spatial", "EcoRegions"))
 }
 ```
@@ -151,7 +151,7 @@ We obtained a 250 m resolution Digital Elevation Model (DEM) for the study area 
 ```{r DEM, echo=T}
 if(!file.exists(here("Data", "Spatial", "DEM", "DEM250.tif"))){
   # Southern Rockies
-  srm <- st_read(here("Data", "Spatial", "EcoRegions", "us_eco_l3", "us_eco_l3.shp")) %>% filter(US_L3NAME == 'Southern Rockies') %>% st_transform(crs=5071) %>% st_buffer(20000)
+  srm <- st_read(here("Data", "Spatial", "EcoRegions", "us_eco_l3.shp")) %>% filter(US_L3NAME == 'Southern Rockies') %>% st_transform(crs=5071) %>% st_buffer(20000)
   dir.create(here("Data", "Spatial","DEM"), showWarnings = FALSE)
 
  # 250 m 
@@ -238,3 +238,6 @@ if(!dir.exists(here("Data", "Spatial", "PRISM"))){
 We also downloaded actual evaportranspiration (AET) and climatic water deficit (CWD) normals (1981-2010) from Rodman et al. [-@rodman2020DataTraitbasedApproach; -@rodman2020TraitbasedApproachAssessing]. Data is publicly available on Dryad (<https://datadryad.org/stash/dataset/doi:10.5061/dryad.cz8w9gj1b>). For our analyses, we downloaded the zipped data file and stored it in the project subdirectory `~Data/Spatial/Rodman`.
 
 # References
+
+::: {#refs}
+:::

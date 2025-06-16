@@ -1,6 +1,6 @@
 ---
 title: "Identify control chronologies for detecting defoliation by the western spruce budworm in Douglas-fir radial growth time series based on climate and tree-ring data for: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
-author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
+author: "Sarah J. Hart, Olivia Santiago, Joshua D. Carrell, and Thomas T. Veblen"
 email: "sarah.hart@colostate.edu"
 date: '`r format(Sys.time(), "%B %d, %Y")`'
 output: 
