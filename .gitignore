@@ -38,6 +38,8 @@ vignettes/*.pdf
 Spatial/
 # Tree-ring measurements not used here
 SANTIAGO/
+# Files not used here
+0-Bak/
 # All results
 Results/
 # Manuscript drafts
