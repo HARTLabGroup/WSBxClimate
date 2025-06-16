@@ -12,8 +12,8 @@ citationcolor: blue
 
 # Highlights
 
+-   Outbreaks often occurred synchronously across the study area
+
 -   Western spruce budworm outbreaks were often preceded by periods of drought
 
 -   Outbreaks were sustained by periods of above average moisture availability
-
--   Euro-American colonization was initially linked with lower susceptibility to outbreak
