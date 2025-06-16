@@ -1,6 +1,6 @@
 ---
 title: "Preprocessing of ponderosa pine chronologies for: Drought may initiate western spruce budworm outbreaks, but multi-year periods of increased moisture availability promote widespread defoliation"
-author: "Sarah J. Hart, Olivia Santiago, Josh Carrell, and Thomas T. Veblen"
+author: "Sarah J. Hart, Olivia Santiago, Joshua D. Carrell, and Thomas T. Veblen"
 email: "sarah.hart@colostate.edu"
 date: '`r format(Sys.time(), "%B %d, %Y")`'
 output: 
@@ -560,7 +560,7 @@ write.rwl(rwlcombo, fname=here("Data", "TreeRing", "Processed", "Nonhost", "TCco
 
 ## Van Bibber Creek
 
-We combined ponderosa pine chronologies collected by Graybill [-@graybill1997NOAAWDSPaleoclimatology], Woodhouse et al. [-@woodhouse2010NOAAWDSPaleoclimatologya] and subsequently recollected by Smith and Veblen in 2007.
+We combined ponderosa pine chronologies collected by Graybill [-@graybill1997NOAAWDSPaleoclimatology], Woodhouse et al. [-@woodhouse2010NOAAWDSPaleoclimatology] and subsequently recollected by Smith and Veblen in 2007.
 
 ```{r VANBdat, results=F, echo=F}
 ## Original - CO550
@@ -624,3 +624,6 @@ write.csv(keymet, here("Data", "TreeRing", "Processed", "Nonhost", "Nonhost-Meta
 ```
 
 # References
+
+::: {#refs}
+:::
