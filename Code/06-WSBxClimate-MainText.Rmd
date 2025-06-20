@@ -891,7 +891,7 @@ colonization.results$coefficient <- sapply(modz, FUN=function(x){return(round(su
 
 colonization.results$p.value <- sapply(modz, FUN=function(x){return(round(summary(x)$tTable[2,5], 3))})
 
-colonization.results %>% write.csv(here("Results", "colonization.csv"))
+colonization.results %>% write.csv(here("Results", "colonization.csv"), row.names=F)
 
 host.outbreak.df.sub$outbreak_status <- factor(host.outbreak.df.sub$outbreak_status, levels=c("not_obr","outbreak" ),labels=c("no outbreak","outbreak"), ordered=T)
 
@@ -1450,6 +1450,18 @@ This research was supported by the USDA National Institute of Food and Agricultu
 
 # Supplementary Material {#SuppMat}
 
+```{r Import_Data}
+host.meta <- read.csv(here("Data", "TreeRing", "Processed", "Host", "host-metadata.csv")) # read in metadata for hosts
+nonhost.meta <- read.csv(here("Data", "TreeRing", "Processed", "Nonhost", "nonhost-metadata.csv")) # read in metadata for control sites
+hostXnonhost <- read.csv(here("Results", "hostXnonhost-subset.csv")) # read in data tht pairs host with control sites
+
+host.meta.sub <- host.meta %>% filter(SeriesCode %in% hostXnonhost$host) # remove sites that didn't match with a control site
+  
+select.nonhost.sites <- hostXnonhost[,c('nonhost1', 'nonhost2','nonhost3')] %>% unlist() %>% unique() # determine which control sites were matched with a host site
+nonhost.meta.sub <- nonhost.meta[nonhost.meta$SeriesCode %in% select.nonhost.sites, ] # remove sites that did not match with host site
+  
+```
+
 ```{r start landscape}
 op_section <- prop_section(type = "continuous")
 block_section(op_section) # create section in landscape format
@@ -1509,7 +1521,7 @@ block_section(close_section) # end section in landscape format
 ```
 
 ```{r colonizationtab, tab.id="colonizationtab", tab.cap="Summary of modelling results testing the effect of Euro-Americans on WSB outbreak dynamics and ecological effects.", tab.lp="supp-tab",tab.cap.pre="Table S"}
-
+colonization.results <- read.csv(here("Results", "colonization.csv"))
 colnames(colonization.results) <- c("Response", "Coefficient", "p value")
 ft <- flextable(colonization.results) 
 ft %>% flextable::align(j=-1, align = "center", part = "all") %>% autofit() %>% fit_to_width(7.5) 
@@ -1585,7 +1597,3 @@ knitr::include_graphics(here("Results", "Figures", "SEA-initation-site.jpg"))
 knitr::include_graphics(here("Results", "Figures", "SEA-cessation-site.jpg"))
 
 ```
-
-\pagebreak
-
-@CO591; @CO596; @CO601; @CO602; @CO607; @CO611; @CO622; @CO639; @CO666; @CO669; @woodhouse2019NOAAWDSPaleoclimatologya; @graybill2002NOAAWDSPaleoclimatologyc; @veblen2000; @rodman2020DataChangingClimatea
