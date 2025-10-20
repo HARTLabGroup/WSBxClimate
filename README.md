@@ -36,9 +36,45 @@ The project has the following structure:
 
     -   *TreeRingfuncs.R*: Some supplemental functions for manipulating tree-ring data.
 
--   Data: This subdirectory contains data used in this project. Note that spatial data is too large to be stored on GitHub and needs to be downloaded and stored locally for all code to run.
+-   Data: This subdirectory contains climate data used in this project. Note that tree-ring data are archived on Dryad (https://datadryad.org/submission/402720) and spatial data is too large to be stored on GitHub and needs to be downloaded and stored locally for all code to run. Fore more deatils on site locations refer to the Dryad repository.
   
-      -   : Some supplemental functions for manipulating tree-ring data.
+      - *nada-hosts.csv*: Timeseries of June-August self-calibrating Palmer Drought Severity Index (SC-PDSI) from the North American Drought Atlas (http://drought.memphis.edu/NADA/) for each site (AD 1600–2005)
+            -     Variables
+                -    year: the calendar year for the data
+                -    B18: SC-PDSI data for the B18 site
+                -    B19: SC-PDSI data for the B19 site
+                -    EP: SC-PDSI data for the EP site
+                -    FP: SC-PDSI data for the FP site
+                -    JP: SC-PDSI data for the JP site
+                -    LJ: SC-PDSI data for the LJ site
+                -    NI: SC-PDSI data for the NI site
+                -    SH: SC-PDSI data for the SH site
+                -    SR: SC-PDSI data for the SR site
+                -    SS: SC-PDSI data for the SS site
+                -    SP: SC-PDSI data for the SP site
+                -    TI: SC-PDSI data for the TI site
+                -    WR: SC-PDSI data for the WR site
+                -    WW: SC-PDSI data for the WW site
+                -    WB: SC-PDSI data for the WB site
+
+      - *prism-JJA.csv*: Timeseries of June-August SC-PDSI from the West Wide Drought Tracker (https://wrcc.dri.edu/wwdt/about.php) for each site  (AD 1895 - 2024)
+          - Variables
+                -    year: the calendar year for the data
+                -    B18: SC-PDSI data for the B18 site
+                -    B19: SC-PDSI data for the B19 site
+                -    EP: SC-PDSI data for the EP site
+                -    FP: SC-PDSI data for the FP site
+                -    JP: SC-PDSI data for the JP site
+                -    LJ: SC-PDSI data for the LJ site
+                -    NI: SC-PDSI data for the NI site
+                -    SH: SC-PDSI data for the SH site
+                -    SR: SC-PDSI data for the SR site
+                -    SS: SC-PDSI data for the SS site
+                -    SP: SC-PDSI data for the SP site
+                -    TI: SC-PDSI data for the TI site
+                -    WR: SC-PDSI data for the WR site
+                -    WW: SC-PDSI data for the WW site
+                -    WB: SC-PDSI data for the WB site
 
 -   Documents
 
