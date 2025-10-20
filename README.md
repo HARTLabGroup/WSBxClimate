@@ -8,9 +8,9 @@ This repository contains all code for *Drought may initiate western spruce budwo
 
 The project has the following structure:
 
--   *.gitignore*
+-   *.gitignore*: a plain text file that specifies intentionally untracked files and directories that Git should ignore
 
--   *CITATION.cff*
+-   *CITATION.cff*: the citation file for this repository
 
 -   citationstyle.csl : A [Citation Style Language](https://citationstyles.org/) file used to format references in the main text file.
 
@@ -37,6 +37,8 @@ The project has the following structure:
     -   *TreeRingfuncs.R*: Some supplemental functions for manipulating tree-ring data.
 
 -   Data: This subdirectory contains data used in this project. Note that spatial data is too large to be stored on GitHub and needs to be downloaded and stored locally for all code to run.
+  
+      -   : Some supplemental functions for manipulating tree-ring data.
 
 -   Documents
 
