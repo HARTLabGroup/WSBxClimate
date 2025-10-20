@@ -36,7 +36,8 @@ vignettes/*.pdf
 *.zip
 # All spatial data
 Spatial/
-# Tree-ring measurements not used here
+# Tree-ring measurements
+TreeRing/
 SANTIAGO/
 # Files not used here
 0-Bak/
