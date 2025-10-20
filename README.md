@@ -68,7 +68,7 @@ The project has the following structure:
     Note that tree-ring data are archived on Dryad
     (<https://datadryad.org/submission/402720>) and spatial data is too
     large to be stored on GitHub and needs to be downloaded and stored
-    locally for all code to run. Fore more deatils on site locations
+    locally for all code to run. For more deatils on site locations
     refer to the Dryad repository.
 
     -   *nada-hosts.csv*: Timeseries of June-August self-calibrating
